@@ -1,0 +1,9 @@
+model	configuration	repetitions	pp512_tok_s	pp512_stddev	tg128_tok_s	tg128_stddev
+qwen35-0.8b-q4_0	one-warp-pre	10	14176.286820	400.484630	305.137762	1.973204
+qwen35-0.8b-q4_0	two-warps	10	14099.497124	525.981481	304.619702	3.447714
+qwen35-0.8b-q4_0	four-warps	10	14150.163609	395.200465	304.868862	3.040770
+qwen35-0.8b-q4_0	one-warp-post	10	14205.612058	273.232073	305.329856	1.973324
+gemma4-12b-q4_0	one-warp-short	7	1495.726212	9.836749	NA	NA
+gemma4-12b-q4_0	four-warps-short	7	1501.374389	10.668733	NA	NA
+gemma4-12b-q4_0	four-warps-long	30	1491.879137	6.514986	NA	NA
+gemma4-12b-q4_0	one-warp-long	30	1495.764084	5.050600	NA	NA

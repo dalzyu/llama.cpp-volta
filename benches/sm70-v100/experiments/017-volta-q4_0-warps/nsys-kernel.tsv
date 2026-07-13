@@ -1,0 +1,3 @@
+configuration	instances	total_time_ns	average_ns	median_ns	min_ns	max_ns
+one-warp	558	13421186	24052.3	30672.0	1632	56415
+four-warps	558	13264606	23771.7	28943.5	1824	57408
