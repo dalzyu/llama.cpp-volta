@@ -1,0 +1,9 @@
+time_percent,total_time_ns,instances,average_ns,kernel
+45.2,144550980,240,602295.8,"cutlass sm70 tensorop s884 gemm f16 128x128 tn align8"
+34.1,109238905,328,333045.4,"dequantize_block_q4_0<half>"
+4.5,14397250,40,359931.3,"flash_attn_ext_f16<256,256,32,2,false,false>"
+4.3,13762527,80,172031.6,"volta_s884gemm_fp16_64x128_ldg8_tn"
+3.1,9865052,328,30076.4,"convert_unary<float,half>"
+1.8,5653302,48,117777.1,"unary_gated_op_kernel<gelu,float>"
+1.7,5406941,8,675867.6,"flash_attn_ext_f16<512,512,8,8,false,false>"
+1.2,3816751,96,39757.8,"rms_norm_f32<1024,true,true>"

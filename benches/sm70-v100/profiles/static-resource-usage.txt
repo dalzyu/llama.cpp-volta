@@ -1,0 +1,25 @@
+Command:
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage ./build/bin/libggml-cuda.so.0
+
+sm_70 resource summary:
+dequantize_block_q4_0<half>: registers/thread 20, stack 0, shared 0, local 0
+mul_mat_vec_q<Q4_0,1,false,false>: registers/thread 54, stack 0, shared 384, local 0
+mul_mat_vec_q<Q4_0,1,true,false>: registers/thread 40, stack 0, shared 768, local 0
+dequantize_block_q2_K<half>: registers/thread 24, stack 0, shared 0, local 0
+dequantize_block_q3_K<half>: registers/thread 32, stack 0, shared 0, local 0
+dequantize_block_q4_K<half>: registers/thread 26, stack 0, shared 0, local 0
+dequantize_block_q6_K<half>: registers/thread 24, stack 0, shared 0, local 0
+mul_mat_vec_q<Q2_K,1,false,false>: registers/thread 44, stack 0, shared 384, local 0
+mul_mat_vec_q<Q2_K,1,true,false>: registers/thread 50, stack 0, shared 768, local 0
+mul_mat_vec_q<Q3_K,1,false,false>: registers/thread 66, stack 0, shared 384, local 0
+mul_mat_vec_q<Q3_K,1,true,false>: registers/thread 90, stack 0, shared 768, local 0
+mul_mat_vec_q<Q4_K,1,false,false>: registers/thread 32, stack 0, shared 384, local 0
+mul_mat_vec_q<Q4_K,1,true,false>: registers/thread 48, stack 0, shared 768, local 0
+mul_mat_vec_q<Q6_K,1,false,false>: registers/thread 40, stack 0, shared 384, local 0
+mul_mat_vec_q<Q6_K,1,true,false>: registers/thread 48, stack 0, shared 768, local 0
+
+Nsight Compute counter attempt:
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/ncu --section LaunchStats --section Occupancy --section SpeedOfLight --kernel-name-base demangled --kernel-name 'regex:dequantize_block_q4_0.*' --launch-count 1 ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 512 -n 0 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+
+Result:
+ERR_NVGPUCTRPERM: the user does not have permission to access NVIDIA GPU performance counters.

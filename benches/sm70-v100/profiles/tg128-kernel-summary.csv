@@ -1,0 +1,9 @@
+time_percent,total_time_ns,instances,average_ns,kernel
+42.0,688003442,29824,23068.8,"mul_mat_vec_q<Q4_0,1,false,false>"
+30.8,503732270,6144,81987.7,"mul_mat_vec_q<Q4_0,1,true,false>"
+5.1,82842075,12288,6741.7,"rms_norm_f32<1024,true,true>"
+4.7,76997506,5120,15038.6,"flash_attn_ext_vec<256,1,F16,F16,false>"
+4.5,73792487,35968,2051.6,"quantize_q8_1"
+3.9,63224553,12416,5092.2,"rms_norm_f32<1024,true,false>"
+2.2,35611919,12288,2898.1,"rms_norm_f32<256,true,false>"
+1.6,26691320,1024,26065.7,"flash_attn_tile<512,512,1,8,false>"

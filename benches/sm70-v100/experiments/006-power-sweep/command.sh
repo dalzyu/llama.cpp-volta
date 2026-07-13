@@ -1,0 +1,5 @@
+trap 'sudo -n nvidia-smi -i ${V100_GPU_1_UUID} -pl 150 >/dev/null' EXIT
+for watts in 100 150 180 200 225 250 275 300; do
+    sudo -n nvidia-smi -i ${V100_GPU_1_UUID} -pl "$watts"
+    CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 512 -n 128 -r 5 --delay 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+done

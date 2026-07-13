@@ -1,0 +1,4 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output=/tmp/sm70-gemma4-pp512 ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 512 -n 0 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output=/tmp/sm70-gemma4-tg128 ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 0 -n 128 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --format csv --force-export=true /tmp/sm70-gemma4-pp512.nsys-rep
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --format csv --force-export=true /tmp/sm70-gemma4-tg128.nsys-rep

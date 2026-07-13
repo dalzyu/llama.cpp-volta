@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m ${LLAMA_CPP_ROOT}/build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f ${LLAMA_CPP_ROOT}/wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup

@@ -1,0 +1,10 @@
+time_percent,total_time_ns,instances,average_ns,kernel
+17.7,56347442,128,440214.4,"mul_mat_vec_q<Q8_0,1,false,false>"
+13.9,44349297,11520,3849.8,"mul_mat_vec_q<Q4_0,1,false,true>"
+11.8,37611418,3072,12243.3,"mul_mat_vec_q<Q4_0,1,true,true>"
+10.4,33066870,20864,1584.9,"quantize_q8_1"
+7.5,24045884,3840,6261.9,"mul_mat_vec_q<Q4_0,1,true,false>"
+6.1,19469528,4736,4111.0,"get_rows_float<float,float>"
+5.5,17611751,6272,2808.0,"rms_norm_f32<1024,true,false>"
+3.2,10183310,2304,4419.8,"mul_mat_vec_q<Q4_0,1,false,false>"
+2.3,7410706,2304,3216.5,"gated_delta_net_cuda<128,false,false>"
