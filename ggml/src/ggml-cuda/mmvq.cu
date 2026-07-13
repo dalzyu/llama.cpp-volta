@@ -494,6 +494,9 @@ static constexpr __host__ __device__ int calc_nwarps(
 
 static constexpr __host__ __device__ int calc_min_blocks_per_sm(
         ggml_type type, int ncols_dst, mmvq_parameter_table_id table_id, bool has_fusion, bool small_k = false) {
+    if (table_id == MMVQ_PARAMETERS_VOLTA && type == GGML_TYPE_Q2_K && ncols_dst == 1 && has_fusion && !small_k) {
+        return 20;
+    }
     if (table_id == MMVQ_PARAMETERS_VOLTA && type == GGML_TYPE_Q3_K && ncols_dst == 1 && has_fusion && !small_k) {
         return 14;
     }

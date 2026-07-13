@@ -1,0 +1,6 @@
+variant	minimum_blocks_per_sm	fused_registers	fused_stack_bytes	repetitions	tg128_tok_s	tg128_stddev	q2_fused_trace_avg_ns
+q3_only	1	52	0	10	29.452627	0.226162	131158.2
+q2_fused	20	48	0	10	29.764045	0.142025	126227.7
+q3_only	1	52	0	10	29.501385	0.135515	NA
+q2_fused	20	48	0	10	29.658545	0.240227	NA
+q2_fused	22	40	16	5	29.169557	0.171522	NA
