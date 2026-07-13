@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json

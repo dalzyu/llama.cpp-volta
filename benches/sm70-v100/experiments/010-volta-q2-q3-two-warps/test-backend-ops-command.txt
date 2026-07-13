@@ -1,0 +1,2 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o MUL_MAT -p 'type_a=q[2346]_K.*n=1,'

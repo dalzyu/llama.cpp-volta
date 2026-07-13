@@ -1,0 +1,12 @@
+Command: CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0
+
+Result: exit 134 after the modified Q2_K and Q3_K MUL_MAT cases passed.
+
+The later failure was outside MMVQ:
+
+CUDA error: invalid argument
+Function: ggml_cuda_flash_attn_ext_mma_f16_case<320, 256, 2, 32>
+Call: cudaFuncSetAttribute(..., cudaFuncAttributeMaxDynamicSharedMemorySize, nbytes_shared_total)
+File: ggml/src/ggml-cuda/fattn-mma-f16.cuh:1945
+
+Focused MMVQ coverage was rerun separately and passed.

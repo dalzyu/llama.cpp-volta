@@ -18,6 +18,16 @@ mul_mat_vec_q<Q4_K,1,true,false>: registers/thread 48, stack 0, shared 768, loca
 mul_mat_vec_q<Q6_K,1,false,false>: registers/thread 40, stack 0, shared 384, local 0
 mul_mat_vec_q<Q6_K,1,true,false>: registers/thread 48, stack 0, shared 768, local 0
 
+Retained Volta two-warp candidate:
+mul_mat_vec_q<Q2_K,1,false,false>: registers/thread 46, stack 0, shared 128, local 0
+mul_mat_vec_q<Q2_K,1,true,false>: registers/thread 52, stack 0, shared 256, local 0
+mul_mat_vec_q<Q3_K,1,false,false>: registers/thread 72, stack 0, shared 128, local 0
+mul_mat_vec_q<Q3_K,1,true,false>: registers/thread 90, stack 0, shared 256, local 0
+mul_mat_vec_q<Q4_K,1,false,false>: registers/thread 32, stack 0, shared 128, local 0
+mul_mat_vec_q<Q4_K,1,true,false>: registers/thread 48, stack 0, shared 256, local 0
+mul_mat_vec_q<Q6_K,1,false,false>: registers/thread 40, stack 0, shared 128, local 0
+mul_mat_vec_q<Q6_K,1,true,false>: registers/thread 48, stack 0, shared 256, local 0
+
 Nsight Compute counter attempt:
 CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/ncu --section LaunchStats --section Occupancy --section SpeedOfLight --kernel-name-base demangled --kernel-name 'regex:dequantize_block_q4_0.*' --launch-count 1 ./build/bin/llama-bench -m ${LLAMA_CPP_ROOT}/build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 512 -n 0 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
 
