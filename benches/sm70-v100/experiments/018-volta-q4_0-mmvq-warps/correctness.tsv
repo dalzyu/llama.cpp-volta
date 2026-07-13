@@ -1,0 +1,14 @@
+check	configuration	result	status
+gemma4-batched-ppl	baseline	308.3287 +/- 38.71784	baseline
+gemma4-batched-ppl	candidate	308.3287 +/- 38.71784	pass
+qwen35-q4_0-batched-ppl	baseline	21.8601 +/- 1.50861	baseline
+qwen35-q4_0-batched-ppl	candidate	21.8601 +/- 1.50861	pass
+gemma4-batch1-ppl-two-chunks	cpu	214.4885 +/- 56.89799	reference
+gemma4-batch1-ppl-two-chunks	four-warps	237.1294 +/- 62.33800	pass
+gemma4-batch1-ppl-two-chunks	two-warps	193.3834 +/- 50.30468	pass
+deterministic-nmse-m4096-k14336	four-warps	0.000042937	pass
+deterministic-nmse-m4096-k14336	two-warps	0.000042937	pass
+deterministic-nmse-m14336-k4096	four-warps	0.000027588	pass
+deterministic-nmse-m14336-k4096	two-warps	0.000027588	pass
+backend-ops-q4_0-n1	candidate	14/14	pass
+backend-ops-large-k-temporary	candidate	1/1	pass

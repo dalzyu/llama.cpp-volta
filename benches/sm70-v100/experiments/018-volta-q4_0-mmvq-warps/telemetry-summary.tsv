@@ -1,0 +1,3 @@
+model	samples	peak_vram_mib	average_active_power_w	average_active_sm_clock_mhz	max_temperature_c
+gemma4-12b-q4_0	65	7582	131.881	1286.662	50
+qwen35-0.8b-q4_0	23	1422	122.892	1502.217	49

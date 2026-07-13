@@ -1,0 +1,16 @@
+model	configuration	repetitions	pp512_tok_s	pp512_stddev	tg128_tok_s	tg128_stddev	peak_vram_mib
+gemma4-12b-q4_0	four-warps-control	7	NA	NA	69.609073	0.196529	NA
+gemma4-12b-q4_0	two-warps-all-k	7	NA	NA	70.351895	0.163627	NA
+qwen35-0.8b-q4_0	two-warps-all-k	10	NA	NA	303.066256	1.236307	NA
+gemma4-12b-q4_0	two-normal-four-small	7	NA	NA	70.452685	0.093124	NA
+qwen35-0.8b-q4_0	two-normal-four-small	10	NA	NA	305.233798	1.579990	NA
+gemma4-12b-q4_0	one-normal-four-small	7	NA	NA	68.535490	0.109984	NA
+gemma4-12b-q4_0	eight-normal-four-small	7	NA	NA	63.747767	0.171804	NA
+gemma4-12b-q4_0	paired-four-control	12	NA	NA	69.442401	0.225550	NA
+gemma4-12b-q4_0	paired-two-normal-four-small	12	NA	NA	70.251569	0.244631	NA
+qwen35-0.8b-q4_0	paired-four-control	20	NA	NA	305.448110	0.823572	NA
+qwen35-0.8b-q4_0	paired-two-normal-four-small	20	NA	NA	305.800570	0.080585	NA
+gemma4-12b-q4_0	retained-final	5	1509.481520	9.986063	70.718444	0.139776	7582
+qwen35-0.8b-q4_0	retained-final	10	14037.730347	413.135343	304.659633	2.794749	1422
+qwen35-0.8b-q8_0	retained-final	5	15164.410947	668.837669	278.254325	2.414425	NA
+qwen36-27b-q2_k	retained-final	5	688.688629	3.222050	28.781356	0.140001	NA

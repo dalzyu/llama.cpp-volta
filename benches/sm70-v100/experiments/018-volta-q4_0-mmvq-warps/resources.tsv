@@ -1,0 +1,7 @@
+kernel	configuration	registers_per_thread	shared_bytes
+q4_0-normal-unfused	four-warps	54	384
+q4_0-normal-unfused	two-warps	54	128
+q4_0-normal-fused	four-warps	40	768
+q4_0-normal-fused	two-warps	40	256
+q4_0-small-unfused	four-warps	56	1536
+q4_0-small-fused	four-warps	70	3072
