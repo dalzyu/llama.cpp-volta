@@ -26,6 +26,6 @@ All kernels remained spill-free. Bracketed Qwen 3.6 27B generation runs used
 | Q3_K wrapping subtract | 30.600, 30.421 | 30.510 | +2.53% |
 | Q3_K plus Q2_K packed sum | 30.817, 30.616 | 30.716 | +3.22% |
 
-The Q2_K rewrite contributed another 0.68% over the Q3_K-only result. A clean
-full rebuild measured 30.826 tok/s. Focused K-quant MUL_MAT coverage passed
-20/20 cases, and eight-chunk Qwen 3.6 perplexity remained exactly 7.1732.
+The Q2_K rewrite contributed another 0.68% over the Q3_K-only result. The final
+revision measured 30.951 tok/s. Focused K-quant MUL_MAT coverage passed 20/20
+cases, and eight-chunk Qwen 3.6 perplexity remained exactly 7.1732.

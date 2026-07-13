@@ -48,7 +48,8 @@ tg128, Q4_0 matrix-vector kernels account for 72.8% of GPU kernel time.
 Volta now uses two-warp blocks for normal-K single-column Q4_0 and Q8_0 MMVQ,
 while their small-K specializations remain at four warps. Q2_K, Q3_K, Q4_K,
 and Q6_K single-column MMVQ also use two warps. Fused normal-K Q2_K and Q3_K
-use spill-free minimum occupancy bounds of 20 and 14 blocks per SM.
+use spill-free minimum occupancy bounds of 20 and 14 blocks per SM. Their inner
+products avoid Q2_K byte broadcasting and unnecessary Q3_K saturation.
 
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
@@ -57,6 +58,7 @@ use spill-free minimum occupancy bounds of 20 and 14 blocks per SM.
 | Qwen 3.6 27B Q2_K tg128 | 27.835 | 28.826 | +3.56% |
 | Qwen 3.6 fused Q3_K occupancy | 28.780 | 29.453 | +2.34% |
 | Qwen 3.6 fused Q2_K occupancy | 29.501 | 29.659 | +0.53% |
+| Qwen 3.6 K-quant device code | 29.758 | 30.716 | +3.22% |
 
 Prompt processing and peak VRAM are unchanged. Eight-chunk perplexity remains
 exactly equal to baseline across all four models. Final focused backend coverage
