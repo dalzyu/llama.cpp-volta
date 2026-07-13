@@ -1,0 +1,4 @@
+model	minimum_blocks_per_sm	unfused_registers	fused_registers	stack_bytes	local_bytes	repetitions	tg128_tok_s	tg128_stddev
+qwen35-0.8b-q8_0	1	64	56	0	0	30	289.047694	0.143005
+qwen35-0.8b-q8_0	17	56	54	0	0	30	288.574066	0.445403
+qwen35-0.8b-q8_0	18	56	54	0	0	30	288.586782	0.127772
