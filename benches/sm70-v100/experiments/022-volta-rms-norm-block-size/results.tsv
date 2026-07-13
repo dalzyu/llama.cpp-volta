@@ -1,0 +1,4 @@
+model	large_row_threads	repetitions	tg128_tok_s	tg128_stddev
+qwen35-0.8b-q4_0	1024	30	310.894418	0.252518
+qwen35-0.8b-q4_0	256	30	309.229773	0.637209
+qwen35-0.8b-q4_0	512	30	310.658776	0.592193
