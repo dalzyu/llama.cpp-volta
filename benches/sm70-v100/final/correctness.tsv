@@ -1,0 +1,8 @@
+test	passed	total	result
+K-quant single-column MUL_MAT	20	20	pass
+Q4_0 single-column MUL_MAT	14	14	pass
+Q8_0 single-column MUL_MAT	16	16	pass
+Gemma 4 12B eight-chunk PPL	1	1	308.3287
+Qwen 3.5 Q4_0 eight-chunk PPL	1	1	21.8601
+Qwen 3.5 Q8_0 eight-chunk PPL	1	1	18.3634
+Qwen 3.6 27B eight-chunk PPL	1	1	7.1732

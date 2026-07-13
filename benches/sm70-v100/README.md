@@ -43,10 +43,19 @@ Nsight Systems kernel summaries are under `profiles/`. For pp512, Q4_0
 dequantization and tensor-core GEMM account for 79.3% of GPU kernel time. For
 tg128, Q4_0 matrix-vector kernels account for 72.8% of GPU kernel time.
 
-## Retained optimization
+## Retained optimizations
 
-Volta now uses two-warps blocks for single-column Q2_K, Q3_K, Q4_K, and Q6_K
-MMVQ. The paired Qwen 3.6 27B comparison improves tg128 from 27.835 to 28.826
-tok/s, or 3.56%. Prompt processing and peak VRAM are unchanged. Perplexity is
-unchanged across all four baseline models, and focused backend correctness
-coverage passes 20/20 cases.
+Volta now uses two-warp blocks for normal-K single-column Q4_0 and Q8_0 MMVQ,
+while their small-K specializations remain at four warps. Q2_K, Q3_K, Q4_K,
+and Q6_K single-column MMVQ also use two warps.
+
+| Controlled comparison | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
+| Qwen 3.5 0.8B Q8_0 tg128 | 279.227 | 289.121 | +3.54% |
+| Qwen 3.6 27B Q2_K tg128 | 27.835 | 28.826 | +3.56% |
+
+Prompt processing and peak VRAM are unchanged. Eight-chunk perplexity remains
+exactly equal to baseline across all four models. Final focused backend coverage
+passes 20/20 K-quant, 14/14 Q4_0, and 16/16 Q8_0 cases. Final HEAD measurements
+and commands are under `final/`.
