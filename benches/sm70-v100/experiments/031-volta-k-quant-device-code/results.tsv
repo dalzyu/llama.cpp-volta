@@ -1,0 +1,8 @@
+variant	q3_instructions	q2_instructions	q3_registers	q2_registers	repetitions	tg128_tok_s	tg128_stddev
+control	552	392	72	48	10	29.858290	0.179603
+q3_wrapping_subtract	512	392	72	48	10	30.599556	0.285323
+q3_wrapping_subtract	512	392	72	48	10	30.420823	0.130719
+control	552	392	72	48	10	29.658265	0.146510
+q3_plus_q2_packed_sum	512	376	72	48	10	30.816784	0.233796
+q3_plus_q2_packed_sum	512	376	72	48	10	30.616097	0.182923
+q3_plus_q2_clean_build	512	376	72	48	10	30.826149	0.152704

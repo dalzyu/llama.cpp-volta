@@ -376,11 +376,8 @@ static __device__ __forceinline__ float vec_dot_q2_K_q8_1_impl_mmvq(
 
         sumf_d += d8[i] * (ggml_cuda_dp4a(vi, u[i], 0) * (sc & 0xF)); // SIMD dot product
 
-        // fill int with 4x m
-        int m = sc >> 4;
-        m |= m <<  8;
-        m |= m << 16;
-        sumf_m += d8[i] * ggml_cuda_dp4a(m, u[i], 0); // multiply constant q2_K part with sum of q8_1 values
+        const int m = sc >> 4;
+        sumf_m += d8[i] * (ggml_cuda_dp4a(0x01010101, u[i], 0) * m);
     }
 
     const float2 dm2f = __half22float2(dm2);
@@ -468,7 +465,7 @@ static __device__ __forceinline__ float vec_dot_q3_K_q8_1_impl_mmvq(
 
         const int vih = ((vh >> i) << 2) & 0x04040404;
 
-        const int vi = __vsubss4(vil, vih);
+        const int vi = __vsub4(vil, vih);
 
         sumf += d8[i] * (ggml_cuda_dp4a(vi, u[i], 0) * sc); // SIMD dot product
     }
