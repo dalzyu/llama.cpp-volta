@@ -1,0 +1,4 @@
+model	small_k_warps	normal_k_warps	repetitions	tg128_tok_s	tg128_stddev
+qwen35-0.8b-q4_0	4	2	30	310.894418	0.252518
+qwen35-0.8b-q4_0	1	2	30	308.470757	0.524974
+qwen35-0.8b-q4_0	8	2	30	283.825897	0.385430
