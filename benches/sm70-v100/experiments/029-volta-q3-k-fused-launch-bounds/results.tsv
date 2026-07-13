@@ -1,0 +1,10 @@
+variant	minimum_blocks_per_sm	unfused_registers	fused_registers	fused_stack_bytes	repetitions	tg128_tok_s	tg128_stddev
+default	1	72	90	0	10	28.779662	0.141267
+combined	16	63	64	0	10	29.339428	0.152035
+combined	16	63	64	0	10	29.344425	0.184612
+fused_only	16	72	64	0	5	29.543917	0.165801
+fused_only	16	72	64	0	10	29.226926	0.042910
+unfused_only	16	63	90	0	10	28.777267	0.195816
+fused_only	14	72	72	0	10	29.452627	0.226162
+combined	17	56	56	40	5	28.149280	0.178007
+combined	20	48	48	72	5	27.210196	0.100504
