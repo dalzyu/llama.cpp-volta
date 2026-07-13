@@ -1,0 +1,7 @@
+model	cache_policy	repetitions	pp512_tok_s	pp512_stddev	tg128_tok_s	tg128_stddev
+qwen36-27b-q2_k	default	5	685.238535	2.309804	28.739525	0.065088
+qwen36-27b-q2_k	prefer_l1	5	651.895131	0.824782	29.028439	0.136933
+qwen35-0.8b-q8_0	default	30	NA	NA	289.047694	0.143005
+qwen35-0.8b-q8_0	prefer_l1	30	NA	NA	288.959279	0.160042
+gemma4-12b-q4_0	default	15	NA	NA	70.363651	0.297942
+gemma4-12b-q4_0	prefer_l1	15	NA	NA	70.236027	0.203007
