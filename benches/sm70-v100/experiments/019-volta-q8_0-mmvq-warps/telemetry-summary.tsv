@@ -1,0 +1,2 @@
+model	samples	peak_vram_mib	average_active_power_w	average_active_sm_clock_mhz	max_temperature_c
+qwen35-0.8b-q8_0	26	1658	125.131	1499.654	47

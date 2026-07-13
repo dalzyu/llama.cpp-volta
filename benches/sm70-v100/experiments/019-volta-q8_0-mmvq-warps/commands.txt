@@ -1,0 +1,5 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 20 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 1 -ub 1 --chunks 2 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o MUL_MAT -p 'type_a=q8_0.*n=1,'
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage ./build/bin/libggml-cuda.so.0

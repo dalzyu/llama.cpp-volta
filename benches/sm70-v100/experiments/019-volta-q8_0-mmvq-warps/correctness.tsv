@@ -1,0 +1,7 @@
+check	configuration	result	status
+qwen35-q8_0-batched-ppl	baseline	18.3634 +/- 1.23695	baseline
+qwen35-q8_0-batched-ppl	candidate	18.3634 +/- 1.23695	pass
+qwen35-q8_0-batch1-ppl-two-chunks	cpu	16.5004 +/- 2.44697	reference
+qwen35-q8_0-batch1-ppl-two-chunks	four-warps	16.4650 +/- 2.44377	pass
+qwen35-q8_0-batch1-ppl-two-chunks	two-warps	16.4784 +/- 2.44485	pass
+backend-ops-q8_0-n1	candidate	16/16	pass

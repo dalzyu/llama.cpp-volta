@@ -437,6 +437,8 @@ static constexpr __host__ __device__ int calc_nwarps(
             switch (type) {
                 case GGML_TYPE_Q4_0:
                     return small_k ? 4 : 2;
+                case GGML_TYPE_Q8_0:
+                    return small_k ? 4 : 2;
                 case GGML_TYPE_Q2_K:
                 case GGML_TYPE_Q3_K:
                 case GGML_TYPE_Q4_K:

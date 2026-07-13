@@ -1,0 +1,8 @@
+model	configuration	repetitions	pp512_tok_s	pp512_stddev	tg128_tok_s	tg128_stddev	peak_vram_mib
+qwen35-0.8b-q8_0	four-warps-control	20	NA	NA	279.226840	0.227718	NA
+qwen35-0.8b-q8_0	two-warps	20	NA	NA	289.121218	0.142798	NA
+qwen35-0.8b-q8_0	one-warp	10	NA	NA	288.549195	0.628414	NA
+qwen35-0.8b-q8_0	eight-warps	10	NA	NA	224.689344	0.299818	NA
+qwen35-0.8b-q8_0	retained-final	10	15116.325229	476.256725	288.319241	3.326368	1658
+qwen36-27b-q2_k	cross-model	3	691.596844	1.245458	28.950567	0.107213	NA
+gemma4-12b-q4_0	cross-model	3	1495.307330	4.068185	70.423644	0.093629	NA
