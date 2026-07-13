@@ -1,0 +1,8 @@
+model	one_warp_types	repetitions	tg128_tok_s	tg128_stddev
+qwen36-27b-q2_k	none	7	28.989245	0.172675
+qwen36-27b-q2_k	q2_k	7	28.680514	0.161530
+qwen36-27b-q2_k	q3_k	7	28.846855	0.113836
+qwen36-27b-q2_k	q4_k	7	28.690072	0.186269
+qwen36-27b-q2_k	q6_k	7	28.674395	0.147792
+qwen36-27b-q2_k	q4_k,q6_k	7	28.659995	0.157722
+qwen36-27b-q2_k	q2_k,q3_k,q4_k,q6_k	7	28.519181	0.173306
