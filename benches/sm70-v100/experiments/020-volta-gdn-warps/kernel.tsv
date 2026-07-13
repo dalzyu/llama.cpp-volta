@@ -1,0 +1,4 @@
+warps	instances	total_ns	average_ns	median_ns	minimum_ns	maximum_ns	stddev_ns
+4	18	NA	382905.7	NA	NA	NA	NA
+2	54	21106111	390853.9	382464	376607	417215	13352.4
+8	54	21587806	399774.2	390223	388192	418560	12118.1

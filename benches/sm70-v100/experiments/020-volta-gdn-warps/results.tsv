@@ -1,0 +1,6 @@
+model	configuration	repetitions	pp512_tok_s	pp512_stddev
+qwen35-0.8b-q4_0	four-warps	50	14047.727248	222.517502
+qwen35-0.8b-q8_0	four-warps	50	14960.000103	227.292505
+qwen35-0.8b-q4_0	two-warps	50	14005.109644	187.957745
+qwen35-0.8b-q8_0	two-warps	50	14917.640435	275.754149
+qwen35-0.8b-q4_0	eight-warps	50	13956.695575	225.613237
