@@ -3225,6 +3225,25 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         }
     }
 
+    if (node->op == GGML_OP_CONT && ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA &&
+            ggml_can_fuse(cgraph, i, { GGML_OP_CONT, GGML_OP_UNARY, GGML_OP_MUL })) {
+        ggml_tensor * unary = cgraph->nodes[i + 1];
+        ggml_tensor * mul   = cgraph->nodes[i + 2];
+        const ggml_tensor * src   = node->src[0];
+        const ggml_tensor * other = mul->src[0] == unary ? mul->src[1] : mul->src[0];
+        const int outputs[] = { i + 2 };
+        if (ggml_get_unary_op(unary) == GGML_UNARY_OP_SIGMOID &&
+                src->type == GGML_TYPE_F32 && node->type == GGML_TYPE_F32 &&
+                unary->type == GGML_TYPE_F32 && other->type == GGML_TYPE_F32 && mul->type == GGML_TYPE_F32 &&
+                ggml_is_contiguous_1(src) && src->nb[0] == sizeof(float) &&
+                ggml_is_contiguous(other) && ggml_is_contiguous(mul) &&
+                ggml_nelements(src) == ggml_nelements(mul) &&
+                ggml_cuda_check_fusion_memory_ranges(cgraph, i, 3, outputs, 1)) {
+            ggml_cuda_op_cont_sigmoid_mul(*cuda_ctx, node, unary, mul);
+            return 2;
+        }
+    }
+
     // multi-(add or mul)
     if (node->op == GGML_OP_ADD || node->op == GGML_OP_MUL) {
         int     n_fuse = 0;

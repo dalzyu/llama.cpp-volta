@@ -640,6 +640,27 @@ void ggml_cuda_op_unary_mul(ggml_backend_cuda_context & ctx, ggml_tensor * unary
     }
 }
 
+void ggml_cuda_op_cont_sigmoid_mul(ggml_backend_cuda_context & ctx,
+                                   ggml_tensor *               cont_node,
+                                   ggml_tensor *               unary_node,
+                                   ggml_tensor *               mul_node) {
+    GGML_ASSERT(unary_node->src[0] == cont_node);
+    GGML_ASSERT(ggml_get_unary_op(unary_node) == GGML_UNARY_OP_SIGMOID);
+
+    const ggml_tensor * src = cont_node->src[0];
+    const ggml_tensor * other = mul_node->src[0] == unary_node ? mul_node->src[1] : mul_node->src[0];
+
+    GGML_ASSERT(src->type == GGML_TYPE_F32 && other->type == GGML_TYPE_F32 && mul_node->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_is_contiguous_1(src) && src->nb[0] == sizeof(float));
+    GGML_ASSERT(ggml_is_contiguous(other) && ggml_is_contiguous(mul_node));
+    GGML_ASSERT(ggml_nelements(src) == ggml_nelements(mul_node));
+
+    const int64_t k = ggml_nelements(mul_node);
+    const int64_t n = src->ne[0];
+    unary_gated_cuda<op_sigmoid>((const float *) src->data, (const float *) other->data,
+        (float *) mul_node->data, k, n, src->nb[1] / sizeof(float), n, ctx.stream());
+}
+
 void ggml_cuda_op_add_softplus_mul(ggml_backend_cuda_context & ctx,
                                    ggml_tensor *               add_node,
                                    ggml_tensor *               unary_node,

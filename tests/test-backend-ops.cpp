@@ -3682,6 +3682,49 @@ struct test_relu_sqr : public test_case {
     }
 };
 
+// CONT(view) -> SIGMOID -> MUL fusion with a strided row source.
+struct test_cont_sigmoid_mul : public test_case {
+    const int64_t row;
+    const int64_t rows;
+    const int64_t n_tokens;
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "CONT_SIGMOID_MUL";
+    }
+
+    bool run_whole_graph() override { return true; }
+
+    std::string vars() override {
+        return VARS_TO_STR3(row, rows, n_tokens);
+    }
+
+    test_cont_sigmoid_mul(int64_t row = 128, int64_t rows = 16, int64_t n_tokens = 1)
+        : row(row), rows(rows), n_tokens(n_tokens) {}
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        ggml_tensor * packed = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, row, 2*rows, n_tokens);
+        ggml_set_name(packed, "packed");
+
+        ggml_tensor * view = ggml_view_3d(ctx, packed, row, rows, n_tokens,
+                2*packed->nb[1], packed->nb[2], packed->nb[1]);
+        ggml_set_name(view, "view");
+
+        ggml_tensor * cont = ggml_cont_2d(ctx, view, row*rows, n_tokens);
+        ggml_set_name(cont, "cont");
+
+        ggml_tensor * gate = ggml_sigmoid(ctx, cont);
+        ggml_set_name(gate, "gate");
+
+        ggml_tensor * other = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, row*rows, n_tokens);
+        ggml_set_name(other, "other");
+
+        ggml_tensor * out = ggml_mul(ctx, other, gate);
+        ggml_set_name(out, "out");
+        return out;
+    }
+};
+
 // SNAKE activation fusion: y = x + sin(a*x)^2 * inv_b
 // CUDA backend matches the naive 5-op chain (mul, sin, sqr, mul, add)
 // and dispatches a single fused kernel.
@@ -7851,6 +7894,12 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     for (ggml_type type : {GGML_TYPE_F16, GGML_TYPE_F32}) {
         test_cases.emplace_back(new test_relu_sqr(type, { 128, 2, 2, 2 }));
         test_cases.emplace_back(new test_relu_sqr(type, { 5, 7, 11, 13 }));
+    }
+
+    for (auto shape : { std::array<int64_t, 3>{ 128, 16, 1 },
+                        std::array<int64_t, 3>{  13,  7, 5 },
+                        std::array<int64_t, 3>{   5, 11, 3 } }) {
+        test_cases.emplace_back(new test_cont_sigmoid_mul(shape[0], shape[1], shape[2]));
     }
 
     // SNAKE activation fusion: x + sin(a*x)^2 * inv_b

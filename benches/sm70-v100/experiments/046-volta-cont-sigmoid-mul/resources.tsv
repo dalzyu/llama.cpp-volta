@@ -1,0 +1,2 @@
+kernel	configuration	threads_per_block	registers_per_thread	shared_bytes	stack_bytes	local_bytes
+unary-gated-sigmoid	retained	256	16	0	0	0
