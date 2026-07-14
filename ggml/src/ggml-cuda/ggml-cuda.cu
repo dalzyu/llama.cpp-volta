@@ -3087,6 +3087,40 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         }
     }
 
+    if (i + 2 < cgraph->n_nodes && node->op == GGML_OP_MUL_MAT &&
+            cgraph->nodes[i + 1]->op == GGML_OP_RESHAPE && cgraph->nodes[i + 2]->op == GGML_OP_ADD &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+        const ggml_op ops[] = { GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_ADD };
+        const int outputs[] = { i + 2 };
+        ggml_tensor * projection = cgraph->nodes[i];
+        ggml_tensor * reshape = cgraph->nodes[i + 1];
+        ggml_tensor * result = cgraph->nodes[i + 2];
+        const bool reshape_lhs = result->src[0] == reshape;
+        const bool reshape_rhs = result->src[1] == reshape;
+        const ggml_tensor * add = reshape_lhs ? result->src[1] : result->src[0];
+        const auto overlaps = [](const ggml_tensor * a, const ggml_tensor * b) {
+            const uintptr_t a_begin = (uintptr_t) a->data;
+            const uintptr_t a_end = a_begin + ggml_nbytes(a);
+            const uintptr_t b_begin = (uintptr_t) b->data;
+            const uintptr_t b_end = b_begin + ggml_nbytes(b);
+            return a_begin < b_end && b_begin < a_end;
+        };
+        // Each row reads add before overwriting the same row.
+        const bool safe_in_place = result->data == add->data && ggml_are_same_layout(result, add) &&
+            !overlaps(result, projection->src[0]) && !overlaps(result, projection->src[1]);
+        const bool ranges_ok = safe_in_place || ggml_cuda_check_fusion_memory_ranges(cgraph, i, 3, outputs, 1);
+        if (ggml_can_fuse_subgraph(cgraph, i, 3, ops, outputs, 1) &&
+                reshape->src[0] == projection && (reshape_lhs != reshape_rhs) &&
+                add != projection && add != reshape &&
+                projection->type == GGML_TYPE_F32 && reshape->type == GGML_TYPE_F32 &&
+                result->type == GGML_TYPE_F32 && add->type == GGML_TYPE_F32 &&
+                ggml_are_same_shape(reshape, result) && ggml_are_same_shape(reshape, add) &&
+                ggml_is_contiguous(reshape) && ggml_is_contiguous(add) && ggml_is_contiguous(result) &&
+                ranges_ok && ggml_cuda_mul_mat_vec_q_add(*cuda_ctx, projection, add, result)) {
+            return 2;
+        }
+    }
+
     if (!disable_gdn_proj_fusion && node->op == GGML_OP_MUL_MAT &&
             ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA && i + 8 < cgraph->n_nodes) {
         const ggml_op ops[] = {
