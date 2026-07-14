@@ -3901,6 +3901,93 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
     return 0;
 }
 
+static bool ggml_cuda_tensors_overlap(const ggml_tensor * a, const ggml_tensor * b) {
+    if (a == nullptr || b == nullptr || a->buffer == nullptr || b->buffer == nullptr ||
+            ggml_nbytes(a) == 0 || ggml_nbytes(b) == 0) {
+        return false;
+    }
+    const uintptr_t a_begin = (uintptr_t) a->data;
+    const uintptr_t a_end = a_begin + ggml_backend_buft_get_alloc_size(a->buffer->buft, a);
+    const uintptr_t b_begin = (uintptr_t) b->data;
+    const uintptr_t b_end = b_begin + ggml_backend_buft_get_alloc_size(b->buffer->buft, b);
+    return a_begin < b_end && b_begin < a_end;
+}
+
+static bool ggml_cuda_can_precompute(
+        const ggml_cgraph * cgraph, const ggml_tensor * future, int begin, int end) {
+    for (int i = begin; i < end; ++i) {
+        const ggml_tensor * node = cgraph->nodes[i];
+        if (ggml_cuda_tensors_overlap(future, node)) {
+            return false;
+        }
+        for (int s = 0; s < GGML_MAX_SRC; ++s) {
+            if (ggml_cuda_tensors_overlap(future, node->src[s])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static int ggml_cuda_find_groupable_gdn_q8(const ggml_cgraph * cgraph, int i) {
+    if (i + 12 >= cgraph->n_nodes ||
+            cgraph->nodes[i    ]->op != GGML_OP_MUL_MAT ||
+            cgraph->nodes[i + 1]->op != GGML_OP_RESHAPE ||
+            cgraph->nodes[i + 2]->op != GGML_OP_TRANSPOSE ||
+            cgraph->nodes[i + 3]->op != GGML_OP_CONCAT ||
+            cgraph->nodes[i + 1]->src[0] != cgraph->nodes[i] ||
+            cgraph->nodes[i + 2]->src[0] != cgraph->nodes[i + 1] ||
+            cgraph->nodes[i + 3]->src[1] != cgraph->nodes[i + 2]) {
+        return -1;
+    }
+
+    const ggml_tensor * qkv = cgraph->nodes[i];
+    const ggml_op ops[] = {
+        GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_ADD, GGML_OP_UNARY, GGML_OP_MUL,
+        GGML_OP_RESHAPE, GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_UNARY,
+    };
+    const int end = std::min(i + 40, cgraph->n_nodes - 8);
+    for (int j = i + 4; j < end; ++j) {
+        const int outputs[] = { j + 5, j + 8 };
+        if (!ggml_can_fuse_subgraph(cgraph, j, 9, ops, outputs, 2)) {
+            continue;
+        }
+
+        const ggml_tensor * alpha          = cgraph->nodes[j];
+        const ggml_tensor * alpha_reshape  = cgraph->nodes[j + 1];
+        const ggml_tensor * alpha_add      = cgraph->nodes[j + 2];
+        const ggml_tensor * alpha_softplus = cgraph->nodes[j + 3];
+        const ggml_tensor * gate           = cgraph->nodes[j + 4];
+        const ggml_tensor * gate_reshape   = cgraph->nodes[j + 5];
+        const ggml_tensor * beta           = cgraph->nodes[j + 6];
+        const ggml_tensor * beta_reshape   = cgraph->nodes[j + 7];
+        const ggml_tensor * beta_sigmoid   = cgraph->nodes[j + 8];
+        const bool add_lhs_alpha = alpha_add->src[0] == alpha_reshape;
+        const bool add_rhs_alpha = alpha_add->src[1] == alpha_reshape;
+        const bool mul_lhs_alpha = gate->src[0] == alpha_softplus;
+        const bool mul_rhs_alpha = gate->src[1] == alpha_softplus;
+
+        if ((qkv->flags & GGML_TENSOR_FLAG_COMPUTE) == 0 ||
+                alpha->src[1] != qkv->src[1] || beta->src[1] != qkv->src[1] ||
+                alpha_reshape->src[0] != alpha || alpha_softplus->src[0] != alpha_add ||
+                gate_reshape->src[0] != gate || beta_reshape->src[0] != beta ||
+                beta_sigmoid->src[0] != beta_reshape ||
+                (add_lhs_alpha == add_rhs_alpha) || (mul_lhs_alpha == mul_rhs_alpha) ||
+                ggml_get_unary_op(alpha_softplus) != GGML_UNARY_OP_SOFTPLUS ||
+                ggml_get_unary_op(beta_sigmoid) != GGML_UNARY_OP_SIGMOID ||
+                !ggml_cuda_check_fusion_memory_ranges(cgraph, j, 9, outputs, 2) ||
+                ggml_cuda_tensors_overlap(qkv, gate_reshape) ||
+                ggml_cuda_tensors_overlap(qkv, beta_sigmoid) ||
+                ggml_cuda_tensors_overlap(gate_reshape, beta_sigmoid) ||
+                !ggml_cuda_can_precompute(cgraph, gate_reshape, i + 1, j) ||
+                !ggml_cuda_can_precompute(cgraph, beta_sigmoid, i + 1, j)) {
+            continue;
+        }
+        return j;
+    }
+    return -1;
+}
+
 static bool ggml_cuda_can_group_qkv(const ggml_cgraph * cgraph, int i) {
     if (i + 7 >= cgraph->n_nodes) {
         return false;
@@ -3965,6 +4052,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     cuda_ctx->q8_1_cache_reset();
 
     static const bool disable_grouped_qkv = getenv("GGML_CUDA_DISABLE_GROUPED_QKV") != nullptr;
+    static const bool disable_grouped_gdn_q8 = getenv("GGML_CUDA_DISABLE_GROUPED_GDN_Q8") != nullptr;
     std::vector<const ggml_tensor *> precomputed_nodes;
 
     // flag used to determine whether it is an integrated_gpu
@@ -4115,6 +4203,31 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                         precomputed_nodes.push_back(node_v);
                         precomputed_nodes.push_back(node_k);
                         continue;
+                    }
+                }
+
+                if (!disable_grouped_gdn_q8 && stream_ctx.concurrent_events.empty()) {
+                    const int alpha_idx = ggml_cuda_find_groupable_gdn_q8(cgraph, i);
+                    if (alpha_idx >= 0) {
+                        ggml_tensor * alpha          = cgraph->nodes[alpha_idx];
+                        ggml_tensor * alpha_reshape  = cgraph->nodes[alpha_idx + 1];
+                        ggml_tensor * alpha_add      = cgraph->nodes[alpha_idx + 2];
+                        ggml_tensor * alpha_softplus = cgraph->nodes[alpha_idx + 3];
+                        ggml_tensor * gate           = cgraph->nodes[alpha_idx + 4];
+                        ggml_tensor * gate_reshape   = cgraph->nodes[alpha_idx + 5];
+                        ggml_tensor * beta           = cgraph->nodes[alpha_idx + 6];
+                        ggml_tensor * beta_sigmoid   = cgraph->nodes[alpha_idx + 8];
+                        const ggml_tensor * alpha_bias = alpha_add->src[0] == alpha_reshape ?
+                            alpha_add->src[1] : alpha_add->src[0];
+                        const ggml_tensor * alpha_scale = gate->src[0] == alpha_softplus ?
+                            gate->src[1] : gate->src[0];
+                        if (ggml_cuda_mul_mat_vec_q_gdn_grouped(*cuda_ctx, node, alpha, beta,
+                                alpha_bias, alpha_scale, gate_reshape, beta_sigmoid)) {
+                            for (int j = 0; j < 9; ++j) {
+                                precomputed_nodes.push_back(cgraph->nodes[alpha_idx + j]);
+                            }
+                            continue;
+                        }
                     }
                 }
 

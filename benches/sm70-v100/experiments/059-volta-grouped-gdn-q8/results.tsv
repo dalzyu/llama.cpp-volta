@@ -1,0 +1,14 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate_a	qwen35-0.8b-q8_0	50	tg128_tok_s	326.549627	0.359147		retained
+generation	disabled_control	qwen35-0.8b-q8_0	50	tg128_tok_s	321.812637	0.983552	0.0000	control
+generation	candidate_b	qwen35-0.8b-q8_0	50	tg128_tok_s	325.831081	0.352524		retained
+generation	candidate_mean	qwen35-0.8b-q8_0	100	tg128_tok_s	326.190354		1.3603	retained
+profile	grouped_qkv_gdn	qwen35-0.8b-q8_0	36	kernel_total_ms	0.408944			retained
+profile	standalone_gdn_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.099332			control
+profile	submissions_removed	qwen35-0.8b-q8_0	1	kernel_launches	36			retained
+profile	affected_time_saved	qwen35-0.8b-q8_0	1	kernel_total_ms	0.065057			retained
+validation	logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	memcheck	q8_0-grouped-gdn	1	errors	0			pass
+validation	llama_archs	all	1	passed	1			pass
+validation	backend_ops	all	1	passed	1			pass
+validation	ctest	all	54	passed	54			pass
