@@ -84,10 +84,10 @@ static __global__ void dequantize_block_q8_0_f16(const void * __restrict__ vx, h
 template<typename dst_t>
 static __global__ void dequantize_block_q4_0(const void * __restrict__ vx, dst_t * __restrict__ yy, int nb32) {
 
-    const int64_t i = blockIdx.x;
+    const int64_t i = 2*blockIdx.x + threadIdx.x/32;
 
     // assume 32 threads
-    const int64_t tid = threadIdx.x;
+    const int64_t tid = threadIdx.x % 32;
     const int64_t il  = tid/8;
     const int64_t ir  = tid%8;
     const int64_t ib = 8*i + ir;
@@ -555,7 +555,7 @@ template<typename dst_t>
 static void dequantize_row_q4_0_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
     const int nb32 = k / 32;
     const int nb = (k + 255) / 256;
-    dequantize_block_q4_0<<<nb, 32, 0, stream>>>(vx, y, nb32);
+    dequantize_block_q4_0<<<(nb + 1)/2, 64, 0, stream>>>(vx, y, nb32);
 }
 
 template<typename dst_t>
