@@ -3725,6 +3725,45 @@ struct test_cont_sigmoid_mul : public test_case {
     }
 };
 
+// CONCAT(dim0) -> VIEW -> CPY fusion for a strided recurrent-state update.
+struct test_concat_cpy : public test_case {
+    const int64_t rows;
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "CONCAT_CPY";
+    }
+
+    bool run_whole_graph() override { return true; }
+
+    std::string vars() override {
+        return VARS_TO_STR1(rows);
+    }
+
+    test_concat_cpy(int64_t rows = 16) : rows(rows) {}
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 3, rows);
+        ggml_set_name(a, "a");
+
+        ggml_tensor * b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, rows);
+        ggml_set_name(b, "b");
+
+        ggml_tensor * concat = ggml_concat(ctx, a, b, 0);
+        ggml_set_name(concat, "concat");
+
+        ggml_tensor * view = ggml_view_2d(ctx, concat, 3, rows, concat->nb[1], sizeof(float));
+        ggml_set_name(view, "view");
+
+        ggml_tensor * dst = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 3*rows, 1);
+        ggml_set_name(dst, "dst");
+
+        ggml_tensor * out = ggml_cpy(ctx, view, dst);
+        ggml_set_name(out, "out");
+        return out;
+    }
+};
+
 // SNAKE activation fusion: y = x + sin(a*x)^2 * inv_b
 // CUDA backend matches the naive 5-op chain (mul, sin, sqr, mul, add)
 // and dispatches a single fused kernel.
@@ -7900,6 +7939,10 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
                         std::array<int64_t, 3>{  13,  7, 5 },
                         std::array<int64_t, 3>{   5, 11, 3 } }) {
         test_cases.emplace_back(new test_cont_sigmoid_mul(shape[0], shape[1], shape[2]));
+    }
+
+    for (int64_t rows : { 1, 7, 128 }) {
+        test_cases.emplace_back(new test_concat_cpy(rows));
     }
 
     // SNAKE activation fusion: x + sin(a*x)^2 * inv_b

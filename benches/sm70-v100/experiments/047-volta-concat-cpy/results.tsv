@@ -1,0 +1,22 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate	qwen35-0.8b-q8_0	10	tg128_tok_s	276.771896	3.258562	0.9203	retained
+generation	control	qwen35-0.8b-q8_0	10	tg128_tok_s	274.248012	3.799483	0.0000	control
+generation	candidate	qwen35-0.8b-q4_0	10	tg128_tok_s	292.282380	3.856228	1.0905	retained
+generation	control	qwen35-0.8b-q4_0	10	tg128_tok_s	289.129528	4.630465	0.0000	control
+cross_model	retained	qwen36-27b-q2_k	5	tg128_tok_s	31.730442	0.060094	0.4584	unchanged
+cross_model	smoke	gemma4-12b-q4_k_xl	5	tg128_tok_s	68.732620	0.306714	-0.4299	unchanged
+prompt	candidate	qwen35-0.8b-q8_0	10	pp512_tok_s	14431.210032	2778.804816	-0.0200	unchanged
+prompt	control	qwen35-0.8b-q8_0	10	pp512_tok_s	14434.103017	2723.536962	0.0000	control
+prompt	candidate	qwen35-0.8b-q4_0	10	pp512_tok_s	14102.552059	2633.427861	0.0143	unchanged
+prompt	control	qwen35-0.8b-q4_0	10	pp512_tok_s	14100.537250	2666.125247	0.0000	control
+profile	control	concat_cont	6912	kernel_total_ms	21.629026	-	0.0000	control
+profile	control	cpy_scalar	6912	kernel_total_ms	24.893079	-	0.0000	control
+profile	retained	concat_cpy_dim0_f32	6912	kernel_total_ms	41.652533	-	-10.4672	retained
+profile	control	concat_cpy_chain	13824	kernel_total_ms	46.522105	-	0.0000	control
+profile	retained	concat_cpy_chain	6912	kernel_total_ms	41.652533	-	-10.4672	retained
+correctness	retained	concat_cpy	3	backend_cases	3	0	pass
+correctness	retained	focused_cuda_sweep	82	backend_cases	82	0	pass
+correctness	retained	concat_cpy_ops	370	backend_cases	370	0	pass
+correctness	retained	qwen35-0.8b-q8_0	1	memcheck_errors	0	0	pass
+correctness	retained	qwen35-0.8b-q8_0	8	ppl	18.3641	1.23699	-	pass
+correctness	retained	qwen35-0.8b-q4_0	8	ppl	21.8604	1.50866	-	pass

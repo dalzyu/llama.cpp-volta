@@ -79,6 +79,67 @@ static void concat_cont_cuda(const T * x,
     concat_cont<T, 2><<<num_blocks, CUDA_CONCAT_BLOCK_SIZE, 0, stream>>>(x, y, dst, ne00, ne01, ne02, ne0, ne1, ne2);
 }
 
+static __device__ __forceinline__ float concat_dim0_value(
+        const float * x, const float * y, const int64_t i,
+        const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t ne03,
+        const int64_t ne10, const int64_t ne11, const int64_t ne12, const int64_t ne13,
+        const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t ne3) {
+    const int64_t plane = ne0*ne1;
+    const int64_t i3 = i/(plane*ne2);
+    const int64_t i2 = (i - i3*plane*ne2)/plane;
+    const int64_t i1 = (i - i3*plane*ne2 - i2*plane)/ne0;
+    const int64_t i0 = i - i3*plane*ne2 - i2*plane - i1*ne0;
+
+    if (i0 < ne00) {
+        return x[i3*ne00*ne01*ne02 + i2*ne00*ne01 + i1*ne00 + i0];
+    }
+
+    const int64_t j0 = i0 - ne00;
+    return y[i3*ne10*ne11*ne12 + i2*ne10*ne11 + i1*ne10 + j0];
+}
+
+static __global__ void concat_cpy_dim0_f32(
+        const float * x, const float * y, float * dst, float * copy_dst,
+        const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t ne03,
+        const int64_t ne10, const int64_t ne11, const int64_t ne12, const int64_t ne13,
+        const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t ne3,
+        const int64_t view_offs, const int64_t view_ne0, const int64_t view_ne1,
+        const int64_t view_ne2, const int64_t view_ne3,
+        const int64_t view_nb0, const int64_t view_nb1, const int64_t view_nb2,
+        const int64_t view_nb3, const int64_t dst_ne0, const int64_t dst_ne1,
+        const int64_t dst_ne2, const int64_t dst_ne3, const int64_t dst_nb0,
+        const int64_t dst_nb1, const int64_t dst_nb2, const int64_t dst_nb3,
+        const int64_t copy_ne) {
+    ggml_cuda_pdl_lc();
+    ggml_cuda_pdl_sync();
+    const int64_t total = ne0*ne1*ne2*ne3;
+
+    for (int64_t i = (int64_t) blockIdx.x*blockDim.x + threadIdx.x;
+            i < total; i += (int64_t) blockDim.x*gridDim.x) {
+        dst[i] = concat_dim0_value(x, y, i,
+            ne00, ne01, ne02, ne03, ne10, ne11, ne12, ne13, ne0, ne1, ne2, ne3);
+
+        if (i < copy_ne) {
+            const int64_t view_plane = view_ne0*view_ne1;
+            const int64_t i3 = i/(view_plane*view_ne2);
+            const int64_t i2 = (i - i3*view_plane*view_ne2)/view_plane;
+            const int64_t i1 = (i - i3*view_plane*view_ne2 - i2*view_plane)/view_ne0;
+            const int64_t i0 = i - i3*view_plane*view_ne2 - i2*view_plane - i1*view_ne0;
+            const int64_t src_offs = view_offs + i0*view_nb0 + i1*view_nb1 + i2*view_nb2 + i3*view_nb3;
+            const int64_t dst_plane = dst_ne0*dst_ne1;
+            const int64_t d3 = i/(dst_plane*dst_ne2);
+            const int64_t d2 = (i - d3*dst_plane*dst_ne2)/dst_plane;
+            const int64_t d1 = (i - d3*dst_plane*dst_ne2 - d2*dst_plane)/dst_ne0;
+            const int64_t d0 = i - d3*dst_plane*dst_ne2 - d2*dst_plane - d1*dst_ne0;
+            const int64_t dst_offs = d0*dst_nb0 + d1*dst_nb1 + d2*dst_nb2 + d3*dst_nb3;
+
+            copy_dst[dst_offs/sizeof(float)] = concat_dim0_value(x, y, src_offs/sizeof(float),
+                ne00, ne01, ne02, ne03, ne10, ne11, ne12, ne13, ne0, ne1, ne2, ne3);
+        }
+    }
+
+}
+
 // non-contiguous kernel (slow)
 template <typename T, int dim>
 static __global__ void __launch_bounds__(CUDA_CONCAT_BLOCK_SIZE)
@@ -236,4 +297,34 @@ void ggml_cuda_op_concat(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
                 break;
         }
     }
+}
+
+void ggml_cuda_op_concat_cpy(ggml_backend_cuda_context & ctx,
+                             ggml_tensor *               concat_node,
+                             ggml_tensor *               cpy_node) {
+    const ggml_tensor * src0      = concat_node->src[0];
+    const ggml_tensor * src1      = concat_node->src[1];
+    const ggml_tensor * copy_src  = cpy_node->src[0];
+    const ggml_tensor * copy_dst  = cpy_node->src[1];
+
+    const int64_t total = ggml_nelements(concat_node);
+    const int64_t blocks = (total + CUDA_CONCAT_BLOCK_SIZE - 1)/CUDA_CONCAT_BLOCK_SIZE;
+    GGML_ASSERT(blocks <= INT_MAX);
+
+    const ggml_cuda_kernel_launch_params launch_params =
+        ggml_cuda_kernel_launch_params((dim3) blocks, CUDA_CONCAT_BLOCK_SIZE, 0, ctx.stream());
+    ggml_cuda_kernel_launch(concat_cpy_dim0_f32, launch_params,
+        (const float *) src0->data, (const float *) src1->data, (float *) concat_node->data,
+        (float *) copy_dst->data,
+        src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
+        src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3],
+        concat_node->ne[0], concat_node->ne[1], concat_node->ne[2], concat_node->ne[3],
+        (int64_t) copy_src->view_offs,
+        copy_src->ne[0], copy_src->ne[1], copy_src->ne[2], copy_src->ne[3],
+        (int64_t) copy_src->nb[0], (int64_t) copy_src->nb[1],
+        (int64_t) copy_src->nb[2], (int64_t) copy_src->nb[3],
+        copy_dst->ne[0], copy_dst->ne[1], copy_dst->ne[2], copy_dst->ne[3],
+        (int64_t) copy_dst->nb[0], (int64_t) copy_dst->nb[1],
+        (int64_t) copy_dst->nb[2], (int64_t) copy_dst->nb[3],
+        ggml_nelements(copy_src));
 }

@@ -3079,6 +3079,42 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         }
     }
 
+    // concat -> cpy: update a strided recurrent convolution state view while building the concat output
+    if (node->op == GGML_OP_CONCAT &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+        int cpy_idx = i + 1;
+        while (cpy_idx < cgraph->n_nodes && ggml_cuda_is_view_or_noop(cgraph->nodes[cpy_idx])) {
+            cpy_idx++;
+        }
+
+        if (cpy_idx < cgraph->n_nodes && cgraph->nodes[cpy_idx]->op == GGML_OP_CPY) {
+            ggml_tensor * cpy = cgraph->nodes[cpy_idx];
+            const ggml_tensor * view = cpy->src[0];
+            const ggml_tensor * dst  = cpy->src[1];
+            const int outputs[] = { i, cpy_idx };
+
+            bool strides_ok = view->nb[0] == sizeof(float) && dst->nb[0] == sizeof(float) &&
+                view->view_offs % sizeof(float) == 0;
+            for (int d = 0; d < GGML_MAX_DIMS; ++d) {
+                strides_ok = strides_ok && view->nb[d] % sizeof(float) == 0 && dst->nb[d] % sizeof(float) == 0;
+            }
+
+            if (ggml_get_op_params_i32(node, 0) == 0 &&
+                    node->type == GGML_TYPE_F32 && node->src[0]->type == GGML_TYPE_F32 &&
+                    node->src[1]->type == GGML_TYPE_F32 && cpy->type == GGML_TYPE_F32 &&
+                    view->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32 &&
+                    view->op == GGML_OP_VIEW && view->view_src == node &&
+                    ggml_is_contiguous(node->src[0]) && ggml_is_contiguous(node->src[1]) &&
+                    ggml_is_contiguous(node) && strides_ok &&
+                    ggml_nelements(view) == ggml_nelements(dst) &&
+                    ggml_nelements(view) <= ggml_nelements(node) &&
+                    ggml_cuda_check_fusion_memory_ranges(cgraph, i, cpy_idx - i + 1, outputs, 2)) {
+                ggml_cuda_op_concat_cpy(*cuda_ctx, node, cpy);
+                return cpy_idx - i;
+            }
+        }
+    }
+
     //topk-moe
     if (cgraph->nodes[i]->op == GGML_OP_UNARY || cgraph->nodes[i]->op == GGML_OP_SOFT_MAX ||
             cgraph->nodes[i]->op == GGML_OP_ARGSORT) {
