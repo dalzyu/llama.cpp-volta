@@ -1487,6 +1487,8 @@ struct ggml_backend_cuda_context {
     // pool
     std::unique_ptr<ggml_cuda_pool> pools[GGML_CUDA_MAX_DEVICES][GGML_CUDA_MAX_STREAMS];
 
+    std::vector<std::pair<const ggml_tensor *, std::unique_ptr<ggml_cuda_pool_alloc<char>>>> q8_1_cache;
+
     static std::unique_ptr<ggml_cuda_pool> new_pool_for_device(int device, int stream_no);
 
     ggml_cuda_pool & pool(int device) {
@@ -1498,6 +1500,28 @@ struct ggml_backend_cuda_context {
 
     ggml_cuda_pool & pool() {
         return pool(device);
+    }
+
+    char * q8_1_cache_get(const ggml_tensor * src, size_t size) {
+        for (const auto & entry : q8_1_cache) {
+            if (entry.first == src && entry.second->actual_size >= size) {
+                return entry.second->get();
+            }
+        }
+        return nullptr;
+    }
+
+    char * q8_1_cache_alloc(const ggml_tensor * src, size_t size) {
+        auto allocation = std::make_unique<ggml_cuda_pool_alloc<char>>(pool(), size);
+        char * ptr = allocation->get();
+        q8_1_cache.emplace_back(src, std::move(allocation));
+        return ptr;
+    }
+
+    void q8_1_cache_reset() {
+        while (!q8_1_cache.empty()) {
+            q8_1_cache.pop_back();
+        }
     }
 };
 
@@ -1642,4 +1666,3 @@ static __inline__ void ggml_cuda_kernel_launch(Kernel kernel, const ggml_cuda_ke
     kernel<<<launch_params.block_nums, launch_params.block_dims, launch_params.shmem, launch_params.stream>>>(std::forward<Args>(args)... );
     CUDA_CHECK(cudaGetLastError());
 }
-
