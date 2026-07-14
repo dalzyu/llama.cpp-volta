@@ -40,7 +40,7 @@ static __global__ void k_get_rows(
     }
 }
 
-template<typename src0_t, typename dst_t, bool vec2>
+template<typename src0_t, typename dst_t, int nvalues>
 static __global__ void k_get_rows_float(
         const src0_t * src0_ptr, const int32_t * src1_ptr, dst_t * dst_ptr,
         const int64_t ne00, /*const int64_t ne01, const int64_t ne02, const int64_t ne03,*/
@@ -55,7 +55,7 @@ static __global__ void k_get_rows_float(
     dst_t         * GGML_CUDA_RESTRICT dst  = dst_ptr;
     ggml_cuda_pdl_sync();
     for (int64_t z = blockIdx.z; z < ne11*(int64_t)ne12_fdv.z; z += gridDim.z) {
-        for (int64_t i00 = (vec2 ? 2 : 1)*(blockIdx.y*blockDim.x + threadIdx.x); i00 < ne00; i00 += (vec2 ? 2 : 1)*gridDim.y*blockDim.x) {
+        for (int64_t i00 = nvalues*(blockIdx.y*blockDim.x + threadIdx.x); i00 < ne00; i00 += nvalues*gridDim.y*blockDim.x) {
             // The x and y dimensions of the grid are swapped because the maximum allowed grid size for x is higher.
             const int i10 = blockIdx.x;
             const uint2 dm = fast_div_modulo((uint32_t)z, ne12_fdv);
@@ -71,10 +71,16 @@ static __global__ void k_get_rows_float(
             dst_t * dst_row = dst + i10*s1 + i11*s2 + i12*s3;
             const src0_t * src0_row = (const src0_t *)((const char *) src0 + i01*nb01 + i11*nb02 + i12*nb03);
 
-            dst_row[i00] = ggml_cuda_cast<dst_t>(src0_row[i00]);
-            if constexpr (vec2) {
-                if (i00 + 1 < ne00) {
-                    dst_row[i00 + 1] = ggml_cuda_cast<dst_t>(src0_row[i00 + 1]);
+            if constexpr (nvalues == 4 && std::is_same_v<src0_t, float> && std::is_same_v<dst_t, float>) {
+                if (i00 + 3 < ne00) {
+                    ggml_cuda_memcpy_1<16>(dst_row + i00, src0_row + i00);
+                    continue;
+                }
+            }
+#pragma unroll
+            for (int i = 0; i < nvalues; ++i) {
+                if (i00 + i < ne00) {
+                    dst_row[i00 + i] = ggml_cuda_cast<dst_t>(src0_row[i00 + i]);
                 }
             }
         }
@@ -154,7 +160,16 @@ static void get_rows_cuda_float(
         cudaStream_t stream) {
     const dim3 block_dims(CUDA_GET_ROWS_BLOCK_SIZE, 1, 1);
     constexpr bool vec2 = std::is_same_v<src0_t, float> && std::is_same_v<dst_t, float>;
-    const int block_num_y = (ne00 + (vec2 ? 2 : 1)*CUDA_GET_ROWS_BLOCK_SIZE - 1) / ((vec2 ? 2 : 1)*CUDA_GET_ROWS_BLOCK_SIZE);
+    bool vec4 = false;
+    if constexpr (vec2) {
+        const int device = ggml_cuda_get_device();
+        const int cc = ggml_cuda_info().devices[device].cc;
+        vec4 = cc == GGML_CUDA_CC_VOLTA && ne00 % 4 == 0 &&
+               nb01 % 16 == 0 && nb02 % 16 == 0 && nb03 % 16 == 0 &&
+               nb1 % 16 == 0 && nb2 % 16 == 0 && nb3 % 16 == 0;
+    }
+    const int nvalues = vec4 ? 4 : (vec2 ? 2 : 1);
+    const int block_num_y = (ne00 + nvalues*CUDA_GET_ROWS_BLOCK_SIZE - 1) / (nvalues*CUDA_GET_ROWS_BLOCK_SIZE);
     const dim3 block_nums(ne10, MIN(block_num_y, UINT16_MAX), MIN(ne11*ne12, UINT16_MAX));
 
     // strides in elements
@@ -173,13 +188,23 @@ static void get_rows_cuda_float(
     const uint3 ne12_fdv = init_fastdiv_values(ne12);
 
     const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params{block_nums, block_dims, 0, stream};
-    ggml_cuda_kernel_launch(k_get_rows_float<src0_t, dst_t, vec2>, launch_params,
-        src0_d, src1_d, dst_d,
-        ne00, /*ne01, ne02, ne03,*/
-        /*ne10,*/ ne11, ne12_fdv, /*ne13,*/
-        /* s0,*/ s1, s2, s3,
-        /* nb00,*/ nb01, nb02, nb03,
-        s10, s11, s12/*, s13*/);
+    if (vec4) {
+        ggml_cuda_kernel_launch(k_get_rows_float<src0_t, dst_t, 4>, launch_params,
+            src0_d, src1_d, dst_d,
+            ne00, /*ne01, ne02, ne03,*/
+            /*ne10,*/ ne11, ne12_fdv, /*ne13,*/
+            /* s0,*/ s1, s2, s3,
+            /* nb00,*/ nb01, nb02, nb03,
+            s10, s11, s12/*, s13*/);
+    } else {
+        ggml_cuda_kernel_launch(k_get_rows_float<src0_t, dst_t, vec2 ? 2 : 1>, launch_params,
+            src0_d, src1_d, dst_d,
+            ne00, /*ne01, ne02, ne03,*/
+            /*ne10,*/ ne11, ne12_fdv, /*ne13,*/
+            /* s0,*/ s1, s2, s3,
+            /* nb00,*/ nb01, nb02, nb03,
+            s10, s11, s12/*, s13*/);
+    }
 }
 
 template <typename dst_t>

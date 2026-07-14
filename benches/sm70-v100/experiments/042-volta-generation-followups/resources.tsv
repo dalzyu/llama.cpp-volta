@@ -1,0 +1,6 @@
+kernel	configuration	registers_per_thread	shared_bytes	stack_bytes	local_bytes
+get_rows_float_f32	float2-control	56	0	0	0
+get_rows_float_f32	float4-retained	40	0	0	0
+q8_0-normal-fused	one-row-control	56	256	0	0
+q8_0-normal-fused	two-row-explicit-reuse	54	512	0	0
+q8_0-normal-fused	split-warps	36	256	0	0
