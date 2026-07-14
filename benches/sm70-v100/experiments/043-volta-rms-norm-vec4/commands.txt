@@ -1,0 +1,13 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build --target llama-bench test-backend-ops llama-perplexity -j "$(nproc)"
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-q8-rms-vec4 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --force-export=true /tmp/sm70-q8-rms-vec4.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o RMS_NORM
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o RMS_NORM_MUL_ROPE
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 4 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m MODEL.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
