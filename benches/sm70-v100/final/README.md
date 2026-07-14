@@ -1,6 +1,6 @@
 # Final retained-build validation
 
-Revision `08818b4e2` was rebuilt in Release mode and tested at the 150 W V100
+Revision `9fbb86e93` was rebuilt in Release mode and tested at the 150 W V100
 power limit. Only the V100 UUID was visible to llama.cpp. The reported means
 omit the first cold sample; repetition counts and standard deviations are in
 `results.tsv`.
