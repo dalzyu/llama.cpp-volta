@@ -276,6 +276,19 @@ static __global__ void unary_gated_op_kernel(const T * x, const T * g, T * dst, 
     dst[i] = (T)(op((float)x[j0]) * (float)g[j1]);
 }
 
+static __global__ void add_softplus_mul_kernel(
+        const float * x, const float * bias, const float * gate, float * dst, const int64_t k) {
+    ggml_cuda_pdl_lc();
+    const int64_t i = int64_t(blockDim.x)*blockIdx.x + threadIdx.x;
+
+    if (i >= k) {
+        return;
+    }
+
+    ggml_cuda_pdl_sync();
+    dst[i] = op_softplus(x[i] + bias[i]) * gate[i];
+}
+
 template <float (*op)(float), typename T>
 static void unary_gated_cuda(const T * x, const T * g, T * dst, const int64_t k, const int64_t n, const int64_t o0, const int64_t o1, cudaStream_t stream) {
     const int64_t num_blocks = (k + CUDA_GLU_BLOCK_SIZE - 1) / CUDA_GLU_BLOCK_SIZE;
@@ -625,6 +638,32 @@ void ggml_cuda_op_unary_mul(ggml_backend_cuda_context & ctx, ggml_tensor * unary
         default:
             GGML_ABORT("Unsupported unary op for fused unary+mul");
     }
+}
+
+void ggml_cuda_op_add_softplus_mul(ggml_backend_cuda_context & ctx,
+                                   ggml_tensor *               add_node,
+                                   ggml_tensor *               unary_node,
+                                   ggml_tensor *               mul_node) {
+    GGML_ASSERT(unary_node->src[0] == add_node);
+    GGML_ASSERT(ggml_get_unary_op(unary_node) == GGML_UNARY_OP_SOFTPLUS);
+
+    const ggml_tensor * x = add_node->src[0];
+    const ggml_tensor * bias = add_node->src[1];
+    const ggml_tensor * gate = mul_node->src[0] == unary_node ? mul_node->src[1] : mul_node->src[0];
+
+    GGML_ASSERT(x->type == GGML_TYPE_F32 && bias->type == GGML_TYPE_F32 && gate->type == GGML_TYPE_F32);
+    GGML_ASSERT(mul_node->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_are_same_shape(x, bias) && ggml_are_same_shape(x, gate));
+    GGML_ASSERT(ggml_is_contiguous(x) && ggml_is_contiguous(bias) && ggml_is_contiguous(gate));
+    GGML_ASSERT(ggml_is_contiguous(mul_node));
+
+    const int64_t k = ggml_nelements(mul_node);
+    const int64_t num_blocks = (k + CUDA_GLU_BLOCK_SIZE - 1) / CUDA_GLU_BLOCK_SIZE;
+    const ggml_cuda_kernel_launch_params launch_params =
+        ggml_cuda_kernel_launch_params((dim3) num_blocks, CUDA_GLU_BLOCK_SIZE, 0, ctx.stream());
+    ggml_cuda_kernel_launch(add_softplus_mul_kernel, launch_params,
+        (const float *) x->data, (const float *) bias->data, (const float *) gate->data,
+        (float *) mul_node->data, k);
 }
 
 /* fused relu + sqr */
