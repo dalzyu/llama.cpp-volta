@@ -54,6 +54,10 @@ recorded as rejected in experiment [035](experiments/035-volta-remaining-kernels
 Graph chunking, separate gate precomputation, multi-column warps, shared q/k,
 and recurrent-loop unrolling are recorded as rejected in experiment
 [037](experiments/037-volta-gdn-redesigns/).
+Legacy cuBLAS algorithm forcing, Q8_0 dequantization packing, and exact-shape
+cuBLASLt split-K integration are recorded as rejected in experiment
+[039](experiments/039-volta-prompt-gemm/). The isolated split-K GEMM wins did
+not translate consistently once dequantization overlap was included.
 
 ## Retained optimizations
 

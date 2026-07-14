@@ -1,0 +1,7 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build -j "$(nproc)" --target llama-bench
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} CUBLAS_LOGINFO_DBG=1 CUBLAS_LOGDEST_DBG=stdout ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 512 -n 0 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nvcc -O3 -std=c++17 benches/sm70-v100/experiments/039-volta-prompt-gemm/volta_gemm_probe.cu -lcublas -lcublasLt -o /tmp/volta_gemm_probe
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /tmp/volta_gemm_probe M N K
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m MODEL.gguf -p 512 -n 0 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-prompt-gemm ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 512 -n 0 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
