@@ -1,0 +1,5 @@
+variant	arch	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+per_dot_row_offset	sm70	56	0	0	0	384
+precomputed_row_base	sm70	48	0	0	0	384
+two_rows_per_warp	sm70	48	0	0	0	384
+two_iteration_pipeline	sm70	56	0	0	0	384

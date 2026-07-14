@@ -766,13 +766,13 @@ static __global__ void mul_mat_vec_q8_0_warp_rows(
 
     const int row = 2*blockIdx.x + threadIdx.y;
     const int blocks_per_row_x = ncols_x/qk;
-    const int kbx_offset = row*stride_row_x;
+    const block_q8_0 * x = (const block_q8_0 *) vx + row*stride_row_x;
     float tmp = 0.0f;
 
     for (int kbx = threadIdx.x/(qi/vdr); kbx < blocks_per_row_x; kbx += blocks_per_warp_iter) {
         const int kby = kbx*(qk/QK8_1);
         const int kqs = vdr*(threadIdx.x % (qi/vdr));
-        tmp += vec_dot_q8_0_q8_1(vx, &y[kby], kbx_offset + kbx, kqs);
+        tmp += vec_dot_q8_0_q8_1(x, &y[kby], kbx, kqs);
     }
 
     tmp = warp_reduce_sum<warp_size>(tmp);
