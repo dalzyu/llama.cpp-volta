@@ -1,0 +1,19 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build --target llama-bench test-backend-ops llama-perplexity -j "$(nproc)"
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 512 -n 0 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 512 -n 0 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-fattn-retained ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 512 -n 128 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --force-export=true /tmp/sm70-fattn-retained.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops test -o FLASH_ATTN_EXT -b CUDA0 -p 'hsk=256,hsv=256.*type_K=f16,type_V=f16' --output csv
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 512 -n 16 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m MODEL.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
+git clone https://github.com/ai-bond/flash-attention-v100 /tmp/flash-attention-v100
+git -C /tmp/flash-attention-v100 rev-parse HEAD
+cd /tmp/flash-attention-v100/utils/sass/mma_swizzle
+/usr/local/cuda-12.9/bin/nvcc -arch=sm_70 -O3 -Wno-deprecated-gpu-targets forward_kernel.cu -o /tmp/fa-v100-padded
+/usr/local/cuda-12.9/bin/nvcc -arch=sm_70 -O3 -Wno-deprecated-gpu-targets forward_kernel_swz.cu -o /tmp/fa-v100-swizzled
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /tmp/fa-v100-padded
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /tmp/fa-v100-swizzled

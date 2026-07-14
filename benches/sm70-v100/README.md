@@ -82,6 +82,13 @@ rows to each lane for aligned 128-wide scalar GDN heads on Volta. It emits
 128-bit state, q, and k accesses while leaving KDA and other architectures on
 the original kernel. The GDN kernel average falls another 6.01%.
 
+Experiment [040](experiments/040-volta-flash-attention/) adds exact SM70 tile
+selections for 256-wide flash attention. The 64-column MMA kernel average falls
+30.05%, while the single-token tile falls 35.73%. The external
+`flash-attention-v100` implementation informed the 64-row KV tile and a shared
+memory swizzle experiment. The swizzle was effective in its original kernel but
+regressed ggml and was not retained.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
@@ -96,9 +103,13 @@ the original kernel. The GDN kernel average falls another 6.01%.
 | Qwen 3.6 float get_rows tg128 | 30.535 | 30.898 | +1.19% |
 | Qwen 3.5 Q4_0 GDN vector rows pp512 | 14226.68 | 14428.77 | +1.42% |
 | Qwen 3.5 Q8_0 GDN vector rows pp512 | 14557.47 | 14761.59 | +1.40% |
+| Qwen 3.5 Q4_0 flash attention pp512 | 14425.28 | 14557.41 | +0.92% |
+| Qwen 3.5 Q8_0 flash attention pp512 | 14769.94 | 14894.49 | +0.84% |
+| Qwen 3.5 Q4_0 flash attention tg128 | 268.537 | 270.475 | +0.72% |
+| Qwen 3.5 Q8_0 flash attention tg128 | 248.564 | 250.081 | +0.61% |
 
-Peak VRAM is unchanged. Earlier retained changes preserve eight-chunk
-perplexity exactly. The vector-row reduction slightly lowers Qwen 3.5 PPL from
-21.8601 to 21.8595 for Q4_0 and from 18.3634 to 18.3631 for Q8_0. Final focused
-backend coverage passes 20/20 K-quant, 14/14 Q4_0, and 16/16 Q8_0 cases. Final
-HEAD measurements and commands are under `final/`.
+Peak VRAM is unchanged. The vector-row and attention reduction-order changes
+produce final eight-chunk Qwen 3.5 PPL estimates of 21.8608 for Q4_0 and
+18.3635 for Q8_0. Focused backend coverage passes 112/112 modified flash
+attention cases in addition to the earlier K-quant, Q4_0, and Q8_0 suites.
+The preceding retained-build measurements and commands are under `final/`.
