@@ -3048,6 +3048,45 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
 
     ggml_tensor * node = cgraph->nodes[i];
 
+    if (i + 3 < cgraph->n_nodes && node->op == GGML_OP_MUL_MAT &&
+            cgraph->nodes[i + 1]->op == GGML_OP_RESHAPE &&
+            cgraph->nodes[i + 2]->op == GGML_OP_UNARY && cgraph->nodes[i + 3]->op == GGML_OP_MUL &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+        const ggml_op ops[] = { GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_UNARY, GGML_OP_MUL };
+        const int outputs[] = { i + 3 };
+        ggml_tensor * projection = cgraph->nodes[i];
+        ggml_tensor * reshape = cgraph->nodes[i + 1];
+        ggml_tensor * silu = cgraph->nodes[i + 2];
+        ggml_tensor * result = cgraph->nodes[i + 3];
+        const bool silu_lhs = result->src[0] == silu;
+        const bool silu_rhs = result->src[1] == silu;
+        const ggml_tensor * mul = silu_lhs ? result->src[1] : result->src[0];
+        const auto overlaps = [](const ggml_tensor * a, const ggml_tensor * b) {
+            const uintptr_t a_begin = (uintptr_t) a->data;
+            const uintptr_t a_end = a_begin + ggml_nbytes(a);
+            const uintptr_t b_begin = (uintptr_t) b->data;
+            const uintptr_t b_end = b_begin + ggml_nbytes(b);
+            return a_begin < b_end && b_begin < a_end;
+        };
+        // Each row reads mul before overwriting the same row.
+        const bool safe_in_place = result->data == mul->data && ggml_are_same_layout(result, mul) &&
+            !overlaps(result, projection->src[0]) && !overlaps(result, projection->src[1]);
+        const bool ranges_ok = safe_in_place || ggml_cuda_check_fusion_memory_ranges(cgraph, i, 4, outputs, 1);
+        if (ggml_can_fuse_subgraph(cgraph, i, 4, ops, outputs, 1) &&
+                reshape->src[0] == projection && silu->src[0] == reshape && (silu_lhs != silu_rhs) &&
+                mul != projection && mul != reshape &&
+                ggml_get_unary_op(silu) == GGML_UNARY_OP_SILU &&
+                projection->type == GGML_TYPE_F32 && reshape->type == GGML_TYPE_F32 &&
+                silu->type == GGML_TYPE_F32 && result->type == GGML_TYPE_F32 && mul->type == GGML_TYPE_F32 &&
+                ggml_are_same_shape(reshape, silu) && ggml_are_same_shape(reshape, result) &&
+                ggml_are_same_shape(reshape, mul) && ggml_is_contiguous(reshape) &&
+                ggml_is_contiguous(mul) && ggml_is_contiguous(result) &&
+                ranges_ok &&
+                ggml_cuda_mul_mat_vec_q_silu_mul(*cuda_ctx, projection, mul, result)) {
+            return 3;
+        }
+    }
+
     if (!disable_gdn_proj_fusion && node->op == GGML_OP_MUL_MAT &&
             ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA && i + 8 < cgraph->n_nodes) {
         const ggml_op ops[] = {

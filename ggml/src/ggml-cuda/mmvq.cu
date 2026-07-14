@@ -782,6 +782,35 @@ static __global__ void mul_mat_vec_q8_0_warp_rows(
 }
 
 __launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
+static __global__ void mul_mat_vec_q8_0_warp_rows_silu_mul(
+        const void * vx, const block_q8_1 * y, const float * mul, float * dst,
+        const uint32_t ncols_x, const uint32_t stride_row_x) {
+    constexpr int qk = QK8_0;
+    constexpr int qi = QI8_0;
+    constexpr int vdr = VDR_Q8_0_Q8_1_MMVQ;
+    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int blocks_per_warp_iter = vdr*warp_size/qi;
+
+    ggml_cuda_pdl_sync();
+
+    const int row = 2*blockIdx.x + threadIdx.y;
+    const int blocks_per_row_x = ncols_x/qk;
+    const block_q8_0 * x = (const block_q8_0 *) vx + row*stride_row_x;
+    float tmp = 0.0f;
+
+    for (int kbx = threadIdx.x/(qi/vdr); kbx < blocks_per_row_x; kbx += blocks_per_warp_iter) {
+        const int kby = kbx*(qk/QK8_1);
+        const int kqs = vdr*(threadIdx.x % (qi/vdr));
+        tmp += vec_dot_q8_0_q8_1(x, &y[kby], kbx, kqs);
+    }
+
+    tmp = warp_reduce_sum<warp_size>(tmp);
+    if (threadIdx.x == 0) {
+        dst[row] = ggml_cuda_op_silu_single(tmp)*mul[row];
+    }
+}
+
+__launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
 static __global__ void mul_mat_vec_q8_0_bias(
         const void * vx, const block_q8_1 * y, const float * bias, float * dst,
         const uint32_t ncols_x, const uint32_t stride_row_x) {
@@ -1729,6 +1758,43 @@ static void mul_mat_vec_q_switch_type(
             GGML_ABORT("fatal error");
             break;
     }
+}
+
+bool ggml_cuda_mul_mat_vec_q_silu_mul(
+        ggml_backend_cuda_context & ctx,
+        const ggml_tensor * projection, const ggml_tensor * mul, ggml_tensor * dst) {
+    const ggml_tensor * src0 = projection->src[0];
+    const ggml_tensor * src1 = projection->src[1];
+    const int cc = ggml_cuda_info().devices[ctx.device].cc;
+    static const bool disable_q8_1_cache = getenv("GGML_CUDA_DISABLE_Q8_1_CACHE") != nullptr;
+
+    if (disable_q8_1_cache || cc != GGML_CUDA_CC_VOLTA || ctx.curr_stream_no != 0 ||
+            projection->op != GGML_OP_MUL_MAT || src0->type != GGML_TYPE_Q8_0 ||
+            src1->type != GGML_TYPE_F32 || projection->type != GGML_TYPE_F32 ||
+            mul->type != GGML_TYPE_F32 || dst->type != GGML_TYPE_F32 ||
+            src0->ne[0] != 1024 || src0->ne[1] != 2048 || src0->ne[2] != 1 || src0->ne[3] != 1 ||
+            src1->ne[0] != 1024 || src1->ne[1] != 1 || src1->ne[2] != 1 || src1->ne[3] != 1 ||
+            projection->ne[0] != 2048 || projection->ne[1] != 1 ||
+            projection->ne[2] != 1 || projection->ne[3] != 1 ||
+            ggml_nelements(mul) != 2048 || ggml_nelements(dst) != 2048 ||
+            !ggml_is_contiguous(src0) || !ggml_is_contiguous(src1) ||
+            !ggml_is_contiguous(mul) || !ggml_is_contiguous(dst)) {
+        return false;
+    }
+
+    const size_t src1_q8_1_size = 1024*sizeof(block_q8_1)/QK8_1;
+    char * src1_q8_1 = ctx.q8_1_cache_get(src1, src1_q8_1_size);
+    if (src1_q8_1 == nullptr) {
+        return false;
+    }
+
+    const dim3 block_nums(2048/2, 1, 1);
+    const dim3 block_dims(ggml_cuda_info().devices[ctx.device].warp_size, 2, 1);
+    const ggml_cuda_kernel_launch_params launch_params(block_nums, block_dims, 0, ctx.stream());
+    ggml_cuda_kernel_launch(mul_mat_vec_q8_0_warp_rows_silu_mul, launch_params,
+        src0->data, (const block_q8_1 *) src1_q8_1, (const float *) mul->data, (float *) dst->data,
+        1024, 1024/QK8_0);
+    return true;
 }
 
 bool ggml_cuda_mul_mat_vec_q_grouped(

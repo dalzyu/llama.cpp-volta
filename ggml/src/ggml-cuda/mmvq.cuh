@@ -11,6 +11,9 @@ int get_mmvq_mmid_max_batch(ggml_type type, int cc);
 void ggml_cuda_mul_mat_vec_q(ggml_backend_cuda_context & ctx,
     const ggml_tensor * src0, const ggml_tensor * src1, const ggml_tensor * ids, ggml_tensor * dst, const ggml_cuda_mm_fusion_args_host * fusion = nullptr);
 
+bool ggml_cuda_mul_mat_vec_q_silu_mul(ggml_backend_cuda_context & ctx,
+    const ggml_tensor * projection, const ggml_tensor * mul, ggml_tensor * dst);
+
 bool ggml_cuda_mul_mat_vec_q_grouped(ggml_backend_cuda_context & ctx,
     const ggml_tensor * dst0, const ggml_tensor * dst1, const ggml_tensor * dst2);
 
