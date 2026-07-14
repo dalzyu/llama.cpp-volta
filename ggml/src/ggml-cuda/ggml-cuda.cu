@@ -3852,10 +3852,71 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
     return 0;
 }
 
+static bool ggml_cuda_can_group_qkv(const ggml_cgraph * cgraph, int i) {
+    if (i + 7 >= cgraph->n_nodes) {
+        return false;
+    }
+
+    const ggml_op ops[] = {
+        GGML_OP_MUL_MAT, GGML_OP_VIEW, GGML_OP_RMS_NORM, GGML_OP_MUL,
+        GGML_OP_ROPE, GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_MUL_MAT,
+    };
+    for (int j = 0; j < 8; ++j) {
+        if (cgraph->nodes[i + j]->op != ops[j]) {
+            return false;
+        }
+    }
+
+    const ggml_tensor * q = cgraph->nodes[i];
+    const ggml_tensor * v = cgraph->nodes[i + 5];
+    const ggml_tensor * k = cgraph->nodes[i + 7];
+    if ((q->flags & GGML_TENSOR_FLAG_COMPUTE) == 0 ||
+            (v->flags & GGML_TENSOR_FLAG_COMPUTE) == 0 ||
+            (k->flags & GGML_TENSOR_FLAG_COMPUTE) == 0 ||
+            v->src[1] != q->src[1] || k->src[1] != q->src[1] ||
+            cgraph->nodes[i + 1]->src[0] != q ||
+            cgraph->nodes[i + 2]->src[0] != cgraph->nodes[i + 1] ||
+            cgraph->nodes[i + 3]->src[0] != cgraph->nodes[i + 2] ||
+            cgraph->nodes[i + 4]->src[0] != cgraph->nodes[i + 3] ||
+            cgraph->nodes[i + 6]->src[0] != v) {
+        return false;
+    }
+
+    const auto tensors_overlap = [](const ggml_tensor * a, const ggml_tensor * b) {
+        if (a == nullptr || b == nullptr || ggml_nbytes(a) == 0 || ggml_nbytes(b) == 0) {
+            return false;
+        }
+        const uintptr_t a_begin = (uintptr_t) a->data;
+        const uintptr_t a_end   = a_begin + ggml_nbytes(a);
+        const uintptr_t b_begin = (uintptr_t) b->data;
+        const uintptr_t b_end   = b_begin + ggml_nbytes(b);
+        return a_begin < b_end && b_begin < a_end;
+    };
+
+    const std::pair<const ggml_tensor *, int> future_nodes[] = { { v, i + 5 }, { k, i + 7 } };
+    for (const auto & future : future_nodes) {
+        for (int j = i + 1; j < future.second; ++j) {
+            const ggml_tensor * node = cgraph->nodes[j];
+            if (tensors_overlap(future.first, node)) {
+                return false;
+            }
+            for (int s = 0; s < GGML_MAX_SRC; ++s) {
+                if (tensors_overlap(future.first, node->src[s])) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, const void * graph_key) {
     bool graph_evaluated_or_captured = false;
 
     cuda_ctx->q8_1_cache_reset();
+
+    static const bool disable_grouped_qkv = getenv("GGML_CUDA_DISABLE_GROUPED_QKV") != nullptr;
+    std::vector<const ggml_tensor *> precomputed_nodes;
 
     // flag used to determine whether it is an integrated_gpu
     const bool integrated            = ggml_cuda_info().devices[cuda_ctx->device].integrated;
@@ -3954,6 +4015,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
 
             for (int i = 0; i < cgraph->n_nodes; i++) {
                 ggml_tensor * node = cgraph->nodes[i];
+                if (std::find(precomputed_nodes.begin(), precomputed_nodes.end(), node) != precomputed_nodes.end()) {
+                    continue;
+                }
                 if (is_concurrent_event_active) {
                     GGML_ASSERT(concurrent_event);
 
@@ -3992,6 +4056,17 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
 
                 if ((node->flags & GGML_TENSOR_FLAG_COMPUTE) == 0) {
                     continue;
+                }
+
+                if (!disable_grouped_qkv && stream_ctx.concurrent_events.empty() &&
+                        ggml_cuda_can_group_qkv(cgraph, i)) {
+                    ggml_tensor * node_v = cgraph->nodes[i + 5];
+                    ggml_tensor * node_k = cgraph->nodes[i + 7];
+                    if (ggml_cuda_mul_mat_vec_q_grouped(*cuda_ctx, node, node_v, node_k)) {
+                        precomputed_nodes.push_back(node_v);
+                        precomputed_nodes.push_back(node_k);
+                        continue;
+                    }
                 }
 
                 int nodes_to_skip = ggml_cuda_try_fuse(cuda_ctx, cgraph, i);
