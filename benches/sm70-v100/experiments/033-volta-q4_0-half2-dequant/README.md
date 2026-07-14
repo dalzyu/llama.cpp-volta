@@ -6,7 +6,8 @@ CUDA prompt prefill. Each thread reads four quantized bytes with two aligned
 and writes four `half2` values. Float and BF16 destinations keep the original
 path. Float products are converted to half with the same rounding operation as
 the control. The Volta launch packs two independent Q4_0 work units into each
-64-thread block; odd block counts are guarded in the kernel.
+64-thread block; odd block counts are guarded in the kernel. Non-Volta devices
+keep the original one-work-unit launch and scalar destination path.
 
 The comparison used 15 benchmark repetitions and omitted the first cold
 sample from the mean and standard deviation. The V100 was pinned by UUID and

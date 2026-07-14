@@ -81,13 +81,13 @@ static __global__ void dequantize_block_q8_0_f16(const void * __restrict__ vx, h
 #endif // __CUDA_ARCH__ >= GGML_CUDA_CC_PASCAL
 }
 
-template<typename dst_t>
+template<typename dst_t, bool packed>
 static __global__ void dequantize_block_q4_0(const void * __restrict__ vx, dst_t * __restrict__ yy, int nb32) {
 
-    const int64_t i = 2*blockIdx.x + threadIdx.x/32;
+    const int64_t i = packed ? 2*blockIdx.x + threadIdx.x/32 : blockIdx.x;
 
     // assume 32 threads
-    const int64_t tid = threadIdx.x % 32;
+    const int64_t tid = packed ? threadIdx.x % 32 : threadIdx.x;
     const int64_t il  = tid/8;
     const int64_t ir  = tid%8;
     const int64_t ib = 8*i + ir;
@@ -101,7 +101,7 @@ static __global__ void dequantize_block_q4_0(const void * __restrict__ vx, dst_t
     const float d = __half2float(x->d);
     const float dm = -8*d;
 
-    if constexpr (std::is_same_v<dst_t, half>) {
+    if constexpr (packed && std::is_same_v<dst_t, half>) {
         uint32_t q;
         ggml_cuda_memcpy_1<sizeof(q), 2>(&q, x->qs + 4*il);
         const int qlo = __vsubss4(q & 0x0F0F0F0F, 0x08080808);
@@ -152,17 +152,19 @@ static __global__ void dequantize_block_q4_1(const void * __restrict__ vx, dst_t
 
 //================================== k-quants
 
-template<typename dst_t>
+template<typename dst_t, bool packed>
 static __global__ void dequantize_block_q2_K(const void * __restrict__ vx, dst_t * __restrict__ yy, int nb) {
 
-    const int64_t i   = 2*blockIdx.x + threadIdx.x/64;
-    if (i >= nb) {
-        return;
+    const int64_t i = packed ? 2*blockIdx.x + threadIdx.x/64 : blockIdx.x;
+    if constexpr (packed) {
+        if (i >= nb) {
+            return;
+        }
     }
 
     const block_q2_K * x = (const block_q2_K *) vx;
 
-    const int64_t tid = threadIdx.x % 64;
+    const int64_t tid = packed ? threadIdx.x % 64 : threadIdx.x;
     const int64_t n   = tid/32;
     const int64_t l   = tid - 32*n;
     const int64_t is  = 8*n + l/16;
@@ -542,7 +544,11 @@ static void dequantize_block_q8_0_f16_cuda(const void * __restrict__ vx, half * 
 template<typename dst_t>
 static void dequantize_row_q2_K_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
     const int nb = k / QK_K;
-    dequantize_block_q2_K<<<(nb + 1)/2, 128, 0, stream>>>(vx, y, nb);
+    if (ggml_cuda_info().devices[ggml_cuda_get_device()].cc == GGML_CUDA_CC_VOLTA) {
+        dequantize_block_q2_K<dst_t, true><<<(nb + 1)/2, 128, 0, stream>>>(vx, y, nb);
+    } else {
+        dequantize_block_q2_K<dst_t, false><<<nb, 64, 0, stream>>>(vx, y, nb);
+    }
 }
 
 template<typename dst_t>
@@ -555,7 +561,11 @@ template<typename dst_t>
 static void dequantize_row_q4_0_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
     const int nb32 = k / 32;
     const int nb = (k + 255) / 256;
-    dequantize_block_q4_0<<<(nb + 1)/2, 64, 0, stream>>>(vx, y, nb32);
+    if (ggml_cuda_info().devices[ggml_cuda_get_device()].cc == GGML_CUDA_CC_VOLTA) {
+        dequantize_block_q4_0<dst_t, true><<<(nb + 1)/2, 64, 0, stream>>>(vx, y, nb32);
+    } else {
+        dequantize_block_q4_0<dst_t, false><<<nb, 32, 0, stream>>>(vx, y, nb32);
+    }
 }
 
 template<typename dst_t>
