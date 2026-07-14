@@ -1,0 +1,5 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build --target llama-bench -j 16
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 10 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-q8-vdr4 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --force-export=true /tmp/sm70-q8-vdr4.nsys-rep

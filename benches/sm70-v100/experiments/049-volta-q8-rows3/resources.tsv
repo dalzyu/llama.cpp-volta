@@ -1,0 +1,2 @@
+kernel	configuration	threads_per_block	registers_per_thread	shared_bytes	stack_bytes	local_bytes
+mul-mat-vec-q8-rows3	rejected	64	unknown	unknown	0	0

@@ -1,0 +1,5 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	control	qwen35-0.8b-q8_0	10	tg128_tok_s	276.771896	3.258562	0.0000	control
+generation	rejected	qwen35-0.8b-q8_0	10	tg128_tok_s	264.934306	2.953024	-4.2770	rejected
+profile	rejected	q8_mmvq_normal	34944	kernel_total_ms	321.344661	-	-	rejected
+correctness	rejected	qwen35-0.8b-q8_0	0	memcheck_errors	-	-	-	not_run
