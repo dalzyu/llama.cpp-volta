@@ -1,0 +1,5 @@
+variant	arch	registers_per_thread	static_shared_bytes	dynamic_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+control_rms	sm70	32	0	128	0	0	404
+control_q8_1	sm70	18	0	0	0	0	-
+fused_global_reload	sm70	24	0	128	0	0	388
+fused_shared_stage	sm70	38	0	4224	0	0	388

@@ -1,0 +1,38 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate_a	qwen35-0.8b-q8_0	30	tg128_tok_s	359.730473	0.609607		retained
+generation	disabled_control	qwen35-0.8b-q8_0	30	tg128_tok_s	342.591737	0.467424	0.0000	control
+generation	candidate_b	qwen35-0.8b-q8_0	30	tg128_tok_s	359.661793	0.529218		retained
+generation	candidate_mean	qwen35-0.8b-q8_0	60	tg128_tok_s	359.696133		4.9926	retained
+generation	final	qwen35-0.8b-q8_0	30	tg128_tok_s	360.036903	0.745994		retained
+generation	candidate_a	qwen35-0.8b-q4_0	20	tg128_tok_s	344.290729	0.481512		retained
+generation	disabled_control	qwen35-0.8b-q4_0	20	tg128_tok_s	331.768507	0.590205	0.0000	control
+generation	candidate_b	qwen35-0.8b-q4_0	20	tg128_tok_s	344.286809	0.484441		retained
+generation	candidate_mean	qwen35-0.8b-q4_0	40	tg128_tok_s	344.288769		3.7738	retained
+generation	final	qwen35-0.8b-q4_0	20	tg128_tok_s	344.965985	1.284580		retained
+profile	control_rms_affected	qwen35-0.8b-q8_0	1584	kernel_total_ms	5.991418		0.0000	control
+profile	control_q8_affected	qwen35-0.8b-q8_0	1584	kernel_total_ms	4.349847		0.0000	control
+profile	fused_rms_q8	qwen35-0.8b-q8_0	1584	kernel_total_ms	7.286876		-29.5359	retained
+profile	affected_time_saved	qwen35-0.8b-q8_0	33	us_per_token	92.557242			retained
+profile	launches_removed	qwen35-0.8b-q8_0	33	launches_per_token	48			retained
+variant	global_reload	qwen35-0.8b-q8_0	30	tg128_tok_s	357.405052	0.656926	0.0000	control
+variant	shared_a	qwen35-0.8b-q8_0	30	tg128_tok_s	359.870725	0.716245		retained
+variant	shared_b	qwen35-0.8b-q8_0	30	tg128_tok_s	359.838301	0.468363		retained
+variant	shared_mean	qwen35-0.8b-q8_0	60	tg128_tok_s	359.854513		0.6853	retained
+variant	global_reload	q8_1-fused	1584	kernel_avg_us	4.757232		0.0000	control
+variant	shared_stage	q8_1-fused	1584	kernel_avg_us	4.592455		-3.4638	retained
+prompt	candidate	qwen35-0.8b-q8_0	10	pp512_tok_s	15136.740115	847.579479	-0.3340	unchanged
+prompt	disabled_control	qwen35-0.8b-q8_0	10	pp512_tok_s	15187.468643	846.132299	0.0000	control
+cross_model	final	qwen36-27b-q2_k	3	tg128_tok_s	32.209873	0.043435		unchanged
+cross_model	final	gemma4-12b-q4_k_xl	3	tg128_tok_s	70.435648	0.515243		unchanged
+validation	graph_logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	eager_logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	graph_logits	qwen35-0.8b-q4_0	128	sha256	385e35ba44725c79a84b3ed86297d71de16280492d40086cb04fa0ed819e14a0			pass
+validation	eager_logits	qwen35-0.8b-q4_0	128	sha256	385e35ba44725c79a84b3ed86297d71de16280492d40086cb04fa0ed819e14a0			pass
+validation	graph_ppl	qwen35-0.8b-q8_0	1	wikitext2_ppl	11.9470	4.74860		pass
+validation	graph_ppl	qwen35-0.8b-q4_0	1	wikitext2_ppl	12.6381	5.02960		pass
+validation	backend_ops	rms-and-mmvq-fusion	351	passed	351			pass
+validation	memcheck	qwen35-0.8b-q8_0	1	errors	0			pass
+validation	initcheck	qwen35-0.8b-q8_0	1	errors	0			pass
+validation	synccheck	qwen35-0.8b-q8_0	1	errors	0			pass
+validation	llama_archs	all	1	passed	1			pass
+validation	ctest_excluding_backend_ops	all	53	passed	53			pass

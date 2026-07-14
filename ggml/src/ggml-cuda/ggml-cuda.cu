@@ -3867,7 +3867,22 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
     }
 
     if (ggml_cuda_can_fuse(cgraph, i, { GGML_OP_RMS_NORM, GGML_OP_MUL }, {})) {
-        ggml_cuda_op_rms_norm_fused(*cuda_ctx, node, cgraph->nodes[i + 1]);
+        ggml_tensor * mul = cgraph->nodes[i + 1];
+        const int cc = ggml_cuda_info().devices[cuda_ctx->device].cc;
+        bool prequantize = cc == GGML_CUDA_CC_VOLTA && mul->ne[0] == 1024 &&
+            mul->ne[1] == 1 && mul->ne[2] == 1 && mul->ne[3] == 1;
+        if (prequantize) {
+            prequantize = false;
+            for (int j = i + 2; j < cgraph->n_nodes; ++j) {
+                const ggml_tensor * consumer = cgraph->nodes[j];
+                if (consumer->op == GGML_OP_MUL_MAT && consumer->src[1] == mul &&
+                        ggml_cuda_should_fuse_mul_mat_vec_q(consumer)) {
+                    prequantize = true;
+                    break;
+                }
+            }
+        }
+        ggml_cuda_op_rms_norm_fused(*cuda_ctx, node, mul, prequantize);
         return 1;
     }
 
