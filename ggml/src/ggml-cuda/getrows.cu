@@ -40,7 +40,7 @@ static __global__ void k_get_rows(
     }
 }
 
-template<typename src0_t, typename dst_t>
+template<typename src0_t, typename dst_t, bool vec2>
 static __global__ void k_get_rows_float(
         const src0_t * src0_ptr, const int32_t * src1_ptr, dst_t * dst_ptr,
         const int64_t ne00, /*const int64_t ne01, const int64_t ne02, const int64_t ne03,*/
@@ -55,7 +55,7 @@ static __global__ void k_get_rows_float(
     dst_t         * GGML_CUDA_RESTRICT dst  = dst_ptr;
     ggml_cuda_pdl_sync();
     for (int64_t z = blockIdx.z; z < ne11*(int64_t)ne12_fdv.z; z += gridDim.z) {
-        for (int64_t i00 = blockIdx.y*blockDim.x + threadIdx.x; i00 < ne00; i00 += gridDim.y*blockDim.x) {
+        for (int64_t i00 = (vec2 ? 2 : 1)*(blockIdx.y*blockDim.x + threadIdx.x); i00 < ne00; i00 += (vec2 ? 2 : 1)*gridDim.y*blockDim.x) {
             // The x and y dimensions of the grid are swapped because the maximum allowed grid size for x is higher.
             const int i10 = blockIdx.x;
             const uint2 dm = fast_div_modulo((uint32_t)z, ne12_fdv);
@@ -72,6 +72,11 @@ static __global__ void k_get_rows_float(
             const src0_t * src0_row = (const src0_t *)((const char *) src0 + i01*nb01 + i11*nb02 + i12*nb03);
 
             dst_row[i00] = ggml_cuda_cast<dst_t>(src0_row[i00]);
+            if constexpr (vec2) {
+                if (i00 + 1 < ne00) {
+                    dst_row[i00 + 1] = ggml_cuda_cast<dst_t>(src0_row[i00 + 1]);
+                }
+            }
         }
     }
 }
@@ -148,7 +153,8 @@ static void get_rows_cuda_float(
         const size_t nb1, const size_t nb2, const size_t nb3,
         cudaStream_t stream) {
     const dim3 block_dims(CUDA_GET_ROWS_BLOCK_SIZE, 1, 1);
-    const int block_num_y = (ne00 + CUDA_GET_ROWS_BLOCK_SIZE - 1) / CUDA_GET_ROWS_BLOCK_SIZE;
+    constexpr bool vec2 = std::is_same_v<src0_t, float> && std::is_same_v<dst_t, float>;
+    const int block_num_y = (ne00 + (vec2 ? 2 : 1)*CUDA_GET_ROWS_BLOCK_SIZE - 1) / ((vec2 ? 2 : 1)*CUDA_GET_ROWS_BLOCK_SIZE);
     const dim3 block_nums(ne10, MIN(block_num_y, UINT16_MAX), MIN(ne11*ne12, UINT16_MAX));
 
     // strides in elements
@@ -167,7 +173,7 @@ static void get_rows_cuda_float(
     const uint3 ne12_fdv = init_fastdiv_values(ne12);
 
     const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params{block_nums, block_dims, 0, stream};
-    ggml_cuda_kernel_launch(k_get_rows_float<src0_t, dst_t>, launch_params,
+    ggml_cuda_kernel_launch(k_get_rows_float<src0_t, dst_t, vec2>, launch_params,
         src0_d, src1_d, dst_d,
         ne00, /*ne01, ne02, ne03,*/
         /*ne10,*/ ne11, ne12_fdv, /*ne13,*/

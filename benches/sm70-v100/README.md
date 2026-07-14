@@ -59,6 +59,10 @@ use spill-free minimum occupancy bounds of 20 and 14 blocks per SM. Their inner
 products avoid Q2_K byte broadcasting and unnecessary Q3_K saturation. Q2_K
 dequantization uses guarded two-superblock blocks on Volta.
 
+The profiled float-to-float `get_rows` path now copies two adjacent elements per
+thread and halves its y-grid. Other source and destination type combinations
+keep the existing scalar kernel.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
@@ -69,6 +73,8 @@ dequantization uses guarded two-superblock blocks on Volta.
 | Qwen 3.6 K-quant device code | 29.758 | 30.716 | +3.22% |
 | Qwen 3.6 Q2_K p512 dequantization | 690.861 | 719.799 | +4.19% |
 | Qwen 3.5 Q4_0 p512 dequantization | 14011.421 | 14793.329 | +5.58% |
+| Qwen 3.5 Q8_0 float get_rows tg128 | 288.953 | 291.321 | +0.82% |
+| Qwen 3.6 float get_rows tg128 | 30.535 | 30.898 | +1.19% |
 
 Peak VRAM is unchanged. Eight-chunk perplexity remains
 exactly equal to baseline across all four models. Final focused backend coverage
