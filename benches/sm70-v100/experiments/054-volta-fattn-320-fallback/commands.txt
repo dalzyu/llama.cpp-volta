@@ -1,0 +1,6 @@
+cmake --build build --target test-backend-ops llama-bench -j "$(nproc)"
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops test -o FLASH_ATTN_EXT -b CUDA0 -p 'hsk=320,hsv=256.*type_K=f16,type_V=f16'
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 ./build/bin/test-backend-ops test -o FLASH_ATTN_EXT -b CUDA0 -p 'hsk=320,hsv=256.*type_K=f16,type_V=f16'
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops test -o FLASH_ATTN_EXT -b CUDA0 -p 'hsk=256,hsv=256.*type_K=f16,type_V=f16'
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 512 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json

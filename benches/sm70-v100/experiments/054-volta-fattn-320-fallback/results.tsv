@@ -1,0 +1,8 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	result
+validation	before	fattn-320-f16	1	cuda_abort	1		failure
+validation	tile_fallback	fattn-320-f16	16	passed	16		pass
+validation	tile_fallback_memcheck	fattn-320-f16	1	errors	0		pass
+validation	retained_tile	fattn-256-f16	112	passed	112		pass
+validation	full_cuda	backend_ops	12995	passed	12995		pass
+smoke	final	qwen35-0.8b-q8_0	5	pp512_tok_s	15990.619463	583.112610	unchanged
+smoke	final	qwen35-0.8b-q8_0	5	tg128_tok_s	319.050782	5.440316	unchanged
