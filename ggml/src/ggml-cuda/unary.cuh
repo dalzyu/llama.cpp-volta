@@ -94,7 +94,8 @@ void ggml_cuda_op_unary_mul(ggml_backend_cuda_context & ctx, ggml_tensor * unary
 void ggml_cuda_op_cont_sigmoid_mul(ggml_backend_cuda_context & ctx,
                                    ggml_tensor *               cont_node,
                                    ggml_tensor *               unary_node,
-                                   ggml_tensor *               mul_node);
+                                   ggml_tensor *               mul_node,
+                                   const ggml_tensor *         q8_dst);
 
 void ggml_cuda_op_add_softplus_mul(ggml_backend_cuda_context & ctx,
                                    ggml_tensor *               add_node,

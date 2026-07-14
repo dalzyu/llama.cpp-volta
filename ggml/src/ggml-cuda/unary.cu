@@ -276,6 +276,38 @@ static __global__ void unary_gated_op_kernel(const T * x, const T * g, T * dst, 
     dst[i] = (T)(op((float)x[j0]) * (float)g[j1]);
 }
 
+template <float (*op)(float)>
+__launch_bounds__(CUDA_GLU_BLOCK_SIZE, 1)
+static __global__ void unary_gated_q8_1_op_kernel(
+        const float * x, const float * g, float * dst, block_q8_1 * q8,
+        const int64_t k, const int64_t n, const int64_t o0, const int64_t o1) {
+    ggml_cuda_pdl_lc();
+    const int i = CUDA_GLU_BLOCK_SIZE*blockIdx.x + threadIdx.x;
+
+    if (i >= k) {
+        return;
+    }
+
+    const int64_t j0 = (i / n) * o0 + (i % n);
+    const int64_t j1 = o0 == o1 ? j0 : (i / n) * o1 + (i % n);
+
+    ggml_cuda_pdl_sync();
+    const float value = op(x[j0])*g[j1];
+    dst[i] = value;
+
+    const float amax = warp_reduce_max<QK8_1>(fabsf(value));
+    const float sum = warp_reduce_sum<QK8_1>(value);
+    const float d = amax/127.0f;
+    const int8_t quant = amax == 0.0f ? 0 : roundf(value/d);
+    const int ib = i/QK8_1;
+    const int iqs = i % QK8_1;
+
+    q8[ib].qs[iqs] = quant;
+    if (iqs == 0) {
+        q8[ib].ds = make_half2(d, sum);
+    }
+}
+
 static __global__ void add_softplus_mul_kernel(
         const float * x, const float * bias, const float * gate, float * dst, const int64_t k) {
     ggml_cuda_pdl_lc();
@@ -643,7 +675,8 @@ void ggml_cuda_op_unary_mul(ggml_backend_cuda_context & ctx, ggml_tensor * unary
 void ggml_cuda_op_cont_sigmoid_mul(ggml_backend_cuda_context & ctx,
                                    ggml_tensor *               cont_node,
                                    ggml_tensor *               unary_node,
-                                   ggml_tensor *               mul_node) {
+                                   ggml_tensor *               mul_node,
+                                   const ggml_tensor *         q8_dst) {
     GGML_ASSERT(unary_node->src[0] == cont_node);
     GGML_ASSERT(ggml_get_unary_op(unary_node) == GGML_UNARY_OP_SIGMOID);
 
@@ -657,8 +690,28 @@ void ggml_cuda_op_cont_sigmoid_mul(ggml_backend_cuda_context & ctx,
 
     const int64_t k = ggml_nelements(mul_node);
     const int64_t n = src->ne[0];
+    const int64_t src_stride = src->nb[1] / sizeof(float);
+    const int64_t other_stride = n;
+    static const bool disable_q8_1_cache = getenv("GGML_CUDA_DISABLE_Q8_1_CACHE") != nullptr;
+    const bool prequantize = q8_dst != nullptr && !disable_q8_1_cache &&
+        ggml_cuda_info().devices[ctx.device].cc == GGML_CUDA_CC_VOLTA && ctx.curr_stream_no == 0 && k == 2048 &&
+        q8_dst->type == GGML_TYPE_F32 && ggml_nelements(q8_dst) == 2048 &&
+        ggml_is_contiguous(q8_dst) && q8_dst->data == mul_node->data;
+    if (prequantize) {
+        const size_t q8_size = 2048*sizeof(block_q8_1)/QK8_1;
+        char * q8 = ctx.q8_1_cache_get(q8_dst, q8_size);
+        if (q8 == nullptr) {
+            q8 = ctx.q8_1_cache_alloc(q8_dst, q8_size);
+        }
+        const ggml_cuda_kernel_launch_params launch_params(
+            dim3(2048/CUDA_GLU_BLOCK_SIZE, 1, 1), CUDA_GLU_BLOCK_SIZE, 0, ctx.stream());
+        ggml_cuda_kernel_launch(unary_gated_q8_1_op_kernel<op_sigmoid>, launch_params,
+            (const float *) src->data, (const float *) other->data, (float *) mul_node->data,
+            (block_q8_1 *) q8, k, n, src_stride, other_stride);
+        return;
+    }
     unary_gated_cuda<op_sigmoid>((const float *) src->data, (const float *) other->data,
-        (float *) mul_node->data, k, n, src->nb[1] / sizeof(float), n, ctx.stream());
+        (float *) mul_node->data, k, n, src_stride, other_stride, ctx.stream());
 }
 
 void ggml_cuda_op_add_softplus_mul(ggml_backend_cuda_context & ctx,

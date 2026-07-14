@@ -3415,7 +3415,23 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
                 ggml_is_contiguous(other) && ggml_is_contiguous(mul) &&
                 ggml_nelements(src) == ggml_nelements(mul) &&
                 ggml_cuda_check_fusion_memory_ranges(cgraph, i, 3, outputs, 1)) {
-            ggml_cuda_op_cont_sigmoid_mul(*cuda_ctx, node, unary, mul);
+            const ggml_tensor * q8_dst = nullptr;
+            for (int j = i + 3; j < cgraph->n_nodes; ++j) {
+                const ggml_tensor * consumer = cgraph->nodes[j];
+                if (consumer->op != GGML_OP_MUL_MAT || !ggml_cuda_should_fuse_mul_mat_vec_q(consumer)) {
+                    continue;
+                }
+                const ggml_tensor * activation = consumer->src[1];
+                const bool direct = activation == mul;
+                const bool reshape = activation->op == GGML_OP_RESHAPE && activation->src[0] == mul &&
+                    activation->type == GGML_TYPE_F32 && ggml_nelements(activation) == 2048 &&
+                    ggml_is_contiguous(activation) && activation->data == mul->data;
+                if (direct || reshape) {
+                    q8_dst = activation;
+                    break;
+                }
+            }
+            ggml_cuda_op_cont_sigmoid_mul(*cuda_ctx, node, unary, mul, q8_dst);
             return 2;
         }
     }

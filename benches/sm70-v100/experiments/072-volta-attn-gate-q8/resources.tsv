@@ -1,0 +1,3 @@
+variant	arch	block_x	block_y	grid_x	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+bare_attn_gate	sm70	256	1	8	20	0	0	0	408
+fused_attn_gate_q8	sm70	256	1	8	20	0	0	0	416
