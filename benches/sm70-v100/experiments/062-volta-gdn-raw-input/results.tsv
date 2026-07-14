@@ -1,0 +1,20 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate_a	qwen35-0.8b-q8_0	50	tg128_tok_s	342.426828	0.793837		rejected
+generation	disabled_control	qwen35-0.8b-q8_0	50	tg128_tok_s	341.543655	0.418424	0.0000	control
+generation	candidate_b	qwen35-0.8b-q8_0	50	tg128_tok_s	341.819308	0.506078		rejected
+generation	candidate_bracket_mean	qwen35-0.8b-q8_0	100	tg128_tok_s	342.123068		0.1696	rejected
+generation_reverse	control_a	qwen35-0.8b-q8_0	30	tg128_tok_s	341.572206	0.452243		control
+generation_reverse	candidate	qwen35-0.8b-q8_0	30	tg128_tok_s	341.718610	0.500992	-0.0131	rejected
+generation_reverse	control_b	qwen35-0.8b-q8_0	30	tg128_tok_s	341.954334	0.425201		control
+generation_reverse	control_bracket_mean	qwen35-0.8b-q8_0	60	tg128_tok_s	341.763270		0.0000	control
+generation_eager	candidate	qwen35-0.8b-q8_0	20	tg128_tok_s	337.521557	0.180285	0.1320	rejected
+generation_eager	disabled_control	qwen35-0.8b-q8_0	20	tg128_tok_s	337.076797	0.405620	0.0000	control
+profile	gdn_control	qwen35-0.8b-q8_0	594	kernel_total_ms	3.008415			control
+profile	finalizer_control	qwen35-0.8b-q8_0	594	kernel_total_ms	2.853350			control
+profile	raw_gdn_candidate	qwen35-0.8b-q8_0	594	kernel_total_ms	3.259385		44.3962	rejected
+profile	affected_time_saved	qwen35-0.8b-q8_0	33	us_per_token	78.8600			rejected
+profile	launches_removed	qwen35-0.8b-q8_0	33	launches_per_token	18			rejected
+resource	raw_gdn_shared	sm70	1	registers	48			pass
+resource	raw_gdn_shared	sm70	1	static_shared_bytes	1024			pass
+validation	logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	eager_logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
