@@ -1,0 +1,10 @@
+area	variant	model_or_case	launches	metric	value	change_pct	result
+profile	retained	qwen35-0.8b-q8_0	33	kernel_total_ms	10.359440	0.0491	unchanged
+profile	fusion_disabled	qwen35-0.8b-q8_0	33	kernel_total_ms	10.354351	0.0000	control
+profile	retained	qwen35-0.8b-q8_0	33	kernel_average_us	313.9224	0.0491	unchanged
+profile	fusion_disabled	qwen35-0.8b-q8_0	33	kernel_average_us	313.7682	0.0000	control
+roofline	minimum_traffic	qwen35-0.8b-q8_0	1	bytes_per_token	271165440		lower_bound
+roofline	minimum_bandwidth	qwen35-0.8b-q8_0	1	gb_per_s	864.222		lower_bound
+roofline	fixed_memory_clock	v100-sm70	1	mhz	877		control
+roofline	theoretical_hbm2	v100-sm70	1	gb_per_s	898		upper_bound
+roofline	minimum_utilization	v100-sm70	1	percent	96.24		ceiling

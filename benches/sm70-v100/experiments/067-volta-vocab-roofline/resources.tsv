@@ -1,0 +1,2 @@
+variant	arch	grid_x	block_x	block_y	registers_per_thread	static_shared_bytes	dynamic_shared_bytes
+q8_0_warp_rows	sm70	124160	32	2	48	0	0

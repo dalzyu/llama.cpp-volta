@@ -1,0 +1,11 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -pl 150
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/vocab-roofline-candidate ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_RMS_GET_ROWS_Q8=1 /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/vocab-roofline-control ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum /tmp/vocab-roofline-candidate.nsys-rep
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum /tmp/vocab-roofline-control.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+
+# 248320 rows * (1024 / 32) blocks/row * 34 bytes/block + 248320 rows * 4 bytes/output
+# = 271165440 bytes minimum traffic.
