@@ -1,0 +1,6 @@
+time_pct,total_time_ns,instances,avg_ns,name
+55.4,1563498764,1600,977186.7,cutlass_70_tensorop_s884gemm_f16_128x128_tn_align8
+9.0,254151146,896,283650.8,dequantize_block_q2_K_half
+8.9,251747191,320,786710.0,dequantize_block_q3_K_half
+8.9,250908273,192,1306813.9,gated_delta_net_cuda
+4.4,125147813,256,488858.6,dequantize_block_q4_K_half

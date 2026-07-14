@@ -1,0 +1,3 @@
+variant	threads	repetitions	pp512_tok_s	pp512_stddev	change_pct	ppl
+original_one_superblock	64	5	690.861232	1.885277	0.00	7.1732
+packed_two_superblocks_guarded	128	5	719.798917	2.325859	4.19	7.1732

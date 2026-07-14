@@ -42,6 +42,9 @@ Model sources and hashes are recorded under `models/`.
 Nsight Systems kernel summaries are under `profiles/`. For pp512, Q4_0
 dequantization and tensor-core GEMM account for 79.3% of GPU kernel time. For
 tg128, Q4_0 matrix-vector kernels account for 72.8% of GPU kernel time.
+Experiment [032](experiments/032-volta-q2-k-dequant-blocks/) packs two Q2_K
+dequantization work units per 128-thread block; on Qwen 3.6 p512 it improves
+the paired control from 690.861 to 719.799 tok/s (+4.19%).
 
 ## Retained optimizations
 
@@ -49,7 +52,8 @@ Volta now uses two-warp blocks for normal-K single-column Q4_0 and Q8_0 MMVQ,
 while their small-K specializations remain at four warps. Q2_K, Q3_K, Q4_K,
 and Q6_K single-column MMVQ also use two warps. Fused normal-K Q2_K and Q3_K
 use spill-free minimum occupancy bounds of 20 and 14 blocks per SM. Their inner
-products avoid Q2_K byte broadcasting and unnecessary Q3_K saturation.
+products avoid Q2_K byte broadcasting and unnecessary Q3_K saturation. Q2_K
+dequantization uses guarded two-superblock blocks on Volta.
 
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
@@ -59,8 +63,9 @@ products avoid Q2_K byte broadcasting and unnecessary Q3_K saturation.
 | Qwen 3.6 fused Q3_K occupancy | 28.780 | 29.453 | +2.34% |
 | Qwen 3.6 fused Q2_K occupancy | 29.501 | 29.659 | +0.53% |
 | Qwen 3.6 K-quant device code | 29.758 | 30.716 | +3.22% |
+| Qwen 3.6 Q2_K p512 dequantization | 690.861 | 719.799 | +4.19% |
 
-Prompt processing and peak VRAM are unchanged. Eight-chunk perplexity remains
+Peak VRAM is unchanged. Eight-chunk perplexity remains
 exactly equal to baseline across all four models. Final focused backend coverage
 passes 20/20 K-quant, 14/14 Q4_0, and 16/16 Q8_0 cases. Final HEAD measurements
 and commands are under `final/`.

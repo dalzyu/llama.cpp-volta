@@ -1,0 +1,7 @@
+cmake --build build --target llama-bench llama-perplexity test-backend-ops -j8
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -p 512 -n 0 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o MUL_MAT -p 'type_a=q[2346]_K.*n=1,'
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} compute-sanitizer --tool memcheck --error-exitcode 1 ./build/bin/test-backend-ops -b CUDA0 -o MUL_MAT -p 'type_a=q2_K.*n=1,'
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-qwen36-q2-dequant-final ./build/bin/llama-bench -m build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -p 512 -n 0 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+cuobjdump --dump-resource-usage build/bin/libggml-cuda.so.0
