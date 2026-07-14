@@ -1,0 +1,22 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate_a	qwen35-0.8b-q8_0	50	tg128_tok_s	341.417834	0.437426		retained
+generation	disabled_control	qwen35-0.8b-q8_0	50	tg128_tok_s	325.950756	0.354822	0.0000	control
+generation	candidate_b	qwen35-0.8b-q8_0	50	tg128_tok_s	340.835835	0.418544		retained
+generation	candidate_mean	qwen35-0.8b-q8_0	100	tg128_tok_s	341.126834		4.6559	retained
+profile	grouped_projection_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.408421			control
+profile	concat_state_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.147552			control
+profile	ssm_conv_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.083009			control
+profile	l2_pair_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.091713			control
+profile	projection_conv_candidate	qwen35-0.8b-q8_0	36	kernel_total_ms	0.442434			retained
+profile	finalize_candidate	qwen35-0.8b-q8_0	36	kernel_total_ms	0.115840			retained
+profile	submissions_removed	qwen35-0.8b-q8_0	1	kernel_launches	72			retained
+profile	affected_time_saved	qwen35-0.8b-q8_0	1	kernel_total_ms	0.172421			retained
+resource	projection_conv	sm70	1	registers	48			pass
+resource	finalize	sm70	1	registers	32			pass
+validation	logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	eager_logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	memcheck	q8_0-gdn-conv	1	errors	0			pass
+validation	initcheck	q8_0-gdn-conv	1	errors	0			pass
+validation	llama_archs	all	1	passed	1			pass
+validation	backend_ops	all	1	passed	1			pass
+validation	ctest	all	54	passed	54			pass
