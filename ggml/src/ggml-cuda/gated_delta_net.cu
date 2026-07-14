@@ -82,7 +82,7 @@ gated_delta_net_cuda(const float * q,
         }
 
         if constexpr (!KDA) {
-            const float g_val = expf(*g_t);
+            const float g_val = __shfl_sync(0xffffffff, lane == 0 ? expf(*g_t) : 0.0f, 0, warp_size);
 
             // kv[col] = (S^T @ k)[col] = sum_i S[i][col] * k[i]
             float kv_shard = 0.0f;

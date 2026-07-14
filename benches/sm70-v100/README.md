@@ -65,6 +65,11 @@ The profiled float-to-float `get_rows` path now copies two adjacent elements per
 thread and halves its y-grid. Other source and destination type combinations
 keep the existing scalar kernel.
 
+Experiment [036](experiments/036-volta-gdn-warp-scalar/) evaluates the scalar
+Gated DeltaNet gate once per warp and broadcasts it. At a fixed 1200 MHz SM
+clock this improves Qwen 3.5 pp512 by 0.24% to 0.32% and reduces the GDN kernel
+average by 3.67%.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |

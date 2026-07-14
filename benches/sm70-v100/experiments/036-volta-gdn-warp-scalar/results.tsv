@@ -1,0 +1,7 @@
+model	configuration	repetitions	pp512_tok_s	stddev_tok_s
+qwen35-0.8b-q4_0	candidate-a	100	14250.19	33.49
+qwen35-0.8b-q8_0	candidate-a	100	14609.67	41.02
+qwen35-0.8b-q4_0	control	100	14197.29	42.69
+qwen35-0.8b-q8_0	control	100	14548.76	46.74
+qwen35-0.8b-q4_0	candidate-b	100	14212.02	50.31
+qwen35-0.8b-q8_0	candidate-b	100	14580.07	22.83

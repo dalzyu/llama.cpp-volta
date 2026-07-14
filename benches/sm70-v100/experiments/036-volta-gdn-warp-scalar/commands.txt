@@ -1,0 +1,5 @@
+sudo nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m MODEL.gguf -p 512 -n 0 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops -b CUDA0 -o GATED_DELTA_NET
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode 1 ./build/bin/test-backend-ops -b CUDA0 -o GATED_DELTA_NET
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m MODEL.gguf -f wikitext-2-raw/wiki.test.raw -c 512 -b 512 -ub 512 --chunks 8 -ngl 99 -sm none -mg 0 -fa auto --no-warmup
