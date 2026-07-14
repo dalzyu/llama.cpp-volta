@@ -3080,10 +3080,26 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
                 silu->type == GGML_TYPE_F32 && result->type == GGML_TYPE_F32 && mul->type == GGML_TYPE_F32 &&
                 ggml_are_same_shape(reshape, silu) && ggml_are_same_shape(reshape, result) &&
                 ggml_are_same_shape(reshape, mul) && ggml_is_contiguous(reshape) &&
-                ggml_is_contiguous(mul) && ggml_is_contiguous(result) &&
-                ranges_ok &&
-                ggml_cuda_mul_mat_vec_q_silu_mul(*cuda_ctx, projection, mul, result)) {
-            return 3;
+                ggml_is_contiguous(mul) && ggml_is_contiguous(result) && ranges_ok) {
+            const ggml_tensor * q8_dst = nullptr;
+            for (int j = i + 4; j < cgraph->n_nodes; ++j) {
+                const ggml_tensor * consumer = cgraph->nodes[j];
+                if (consumer->op != GGML_OP_MUL_MAT || !ggml_cuda_should_fuse_mul_mat_vec_q(consumer)) {
+                    continue;
+                }
+                const ggml_tensor * activation = consumer->src[1];
+                const bool direct = activation == result;
+                const bool reshape = activation->op == GGML_OP_RESHAPE && activation->src[0] == result &&
+                    activation->type == GGML_TYPE_F32 && ggml_nelements(activation) == 2048 &&
+                    ggml_is_contiguous(activation) && activation->data == result->data;
+                if (direct || reshape) {
+                    q8_dst = activation;
+                    break;
+                }
+            }
+            if (ggml_cuda_mul_mat_vec_q_silu_mul(*cuda_ctx, projection, mul, result, q8_dst)) {
+                return 3;
+            }
         }
     }
 

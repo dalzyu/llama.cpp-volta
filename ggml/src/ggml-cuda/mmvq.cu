@@ -810,6 +810,64 @@ static __global__ void mul_mat_vec_q8_0_warp_rows_silu_mul(
     }
 }
 
+__launch_bounds__(512, 2)
+static __global__ void mul_mat_vec_q8_0_warp_rows_silu_mul_q8_1(
+        const void * vx, const block_q8_1 * y, const float * mul,
+        float * dst, block_q8_1 * dst_q8_1) {
+    constexpr int qk = QK8_0;
+    constexpr int qi = QI8_0;
+    constexpr int vdr = VDR_Q8_0_Q8_1_MMVQ;
+    constexpr int warp_size = 32;
+    constexpr int ncols_x = 1024;
+    constexpr int blocks_per_row_x = ncols_x/qk;
+    constexpr int blocks_per_warp_iter = vdr*warp_size/qi;
+
+    ggml_cuda_pdl_sync();
+
+    const int row0 = QK8_1*blockIdx.x + threadIdx.y;
+    const int row1 = row0 + blockDim.y;
+    const block_q8_0 * x0 = (const block_q8_0 *) vx + row0*blocks_per_row_x;
+    const block_q8_0 * x1 = (const block_q8_0 *) vx + row1*blocks_per_row_x;
+    float tmp0 = 0.0f;
+    float tmp1 = 0.0f;
+
+    for (int kbx = threadIdx.x/(qi/vdr); kbx < blocks_per_row_x; kbx += blocks_per_warp_iter) {
+        const int kby = kbx*(qk/QK8_1);
+        const int kqs = vdr*(threadIdx.x % (qi/vdr));
+        tmp0 += vec_dot_q8_0_q8_1(x0, &y[kby], kbx, kqs);
+        tmp1 += vec_dot_q8_0_q8_1(x1, &y[kby], kbx, kqs);
+    }
+
+    tmp0 = warp_reduce_sum<warp_size>(tmp0);
+    tmp1 = warp_reduce_sum<warp_size>(tmp1);
+
+    __shared__ float results[QK8_1];
+    if (threadIdx.x == 0) {
+        const float result0 = ggml_cuda_op_silu_single(tmp0)*mul[row0];
+        const float result1 = ggml_cuda_op_silu_single(tmp1)*mul[row1];
+        dst[row0] = result0;
+        dst[row1] = result1;
+        results[threadIdx.y] = result0;
+        results[threadIdx.y + blockDim.y] = result1;
+    }
+    __syncthreads();
+
+    if (threadIdx.y != 0) {
+        return;
+    }
+
+    const float value = results[threadIdx.x];
+    const float amax = warp_reduce_max<QK8_1>(fabsf(value));
+    const float sum = warp_reduce_sum<QK8_1>(value);
+    const float d = amax/127.0f;
+    const int8_t quant = amax == 0.0f ? 0 : roundf(value/d);
+
+    dst_q8_1[blockIdx.x].qs[threadIdx.x] = quant;
+    if (threadIdx.x == 0) {
+        dst_q8_1[blockIdx.x].ds = make_half2(d, sum);
+    }
+}
+
 __launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
 static __global__ void mul_mat_vec_q8_0_warp_rows_add(
         const void * vx, const block_q8_1 * y, const float * add, float * dst,
@@ -1791,7 +1849,8 @@ static void mul_mat_vec_q_switch_type(
 
 bool ggml_cuda_mul_mat_vec_q_silu_mul(
         ggml_backend_cuda_context & ctx,
-        const ggml_tensor * projection, const ggml_tensor * mul, ggml_tensor * dst) {
+        const ggml_tensor * projection, const ggml_tensor * mul, ggml_tensor * dst,
+        const ggml_tensor * q8_dst) {
     const ggml_tensor * src0 = projection->src[0];
     const ggml_tensor * src1 = projection->src[1];
     const int cc = ggml_cuda_info().devices[ctx.device].cc;
@@ -1815,6 +1874,22 @@ bool ggml_cuda_mul_mat_vec_q_silu_mul(
     char * src1_q8_1 = ctx.q8_1_cache_get(src1, src1_q8_1_size);
     if (src1_q8_1 == nullptr) {
         return false;
+    }
+
+    const bool prequantize = q8_dst != nullptr && q8_dst->type == GGML_TYPE_F32 &&
+        ggml_nelements(q8_dst) == 2048 && ggml_is_contiguous(q8_dst) && q8_dst->data == dst->data;
+    if (prequantize) {
+        const size_t dst_q8_1_size = 2048*sizeof(block_q8_1)/QK8_1;
+        char * dst_q8_1 = ctx.q8_1_cache_get(q8_dst, dst_q8_1_size);
+        if (dst_q8_1 == nullptr) {
+            dst_q8_1 = ctx.q8_1_cache_alloc(q8_dst, dst_q8_1_size);
+        }
+        const ggml_cuda_kernel_launch_params launch_params(
+            dim3(2048/QK8_1, 1, 1), dim3(32, QK8_1/2, 1), 0, ctx.stream());
+        ggml_cuda_kernel_launch(mul_mat_vec_q8_0_warp_rows_silu_mul_q8_1, launch_params,
+            src0->data, (const block_q8_1 *) src1_q8_1, (const float *) mul->data,
+            (float *) dst->data, (block_q8_1 *) dst_q8_1);
+        return true;
     }
 
     const dim3 block_nums(2048/2, 1, 1);

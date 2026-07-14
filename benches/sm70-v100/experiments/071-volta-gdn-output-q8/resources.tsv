@@ -1,0 +1,3 @@
+variant	arch	block_x	block_y	grid_x	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+bare_gdn_epilogue	sm70	32	2	1024	48	0	0	0	392
+fused_gdn_q8	sm70	32	16	64	44	128	0	0	392

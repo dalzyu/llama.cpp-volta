@@ -1,0 +1,31 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -pl 150
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build --target llama-bench llama-perplexity test-backend-ops test-llama-archs -j 8
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+# Historical A/B control from the temporary instrumented source; the retained source does not expose this switch.
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_GDN_OUTPUT_Q8=1 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/gdn-output-q8-candidate ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+# Historical profile control from the temporary instrumented source.
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_GDN_OUTPUT_Q8=1 /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/gdn-output-q8-control ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_gb_sum --format csv /tmp/gdn-output-q8-candidate.nsys-rep
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_gb_sum --format csv /tmp/gdn-output-q8-control.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/gdn-output-q8-final.logits
+# Historical correctness control from the temporary instrumented source.
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_GDN_OUTPUT_Q8=1 ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/gdn-output-q8-control.logits
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_GRAPHS=1 ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/gdn-output-q8-eager.logits
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_Q8_1_CACHE=1 ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/gdn-output-q8-no-cache.logits
+cmp /tmp/gdn-output-q8-final.logits /tmp/gdn-output-q8-eager.logits
+cmp /tmp/gdn-output-q8-final.logits /tmp/gdn-output-q8-no-cache.logits
+sha256sum /tmp/gdn-output-q8-*.logits
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops test -b CUDA0 -o RMS_NORM,MUL_MAT_VEC_FUSION
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 2 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool initcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 2 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool synccheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 2 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-llama-archs
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ctest --test-dir build --output-on-failure -E '^test-backend-ops$'
