@@ -1,0 +1,11 @@
+cmake --build build -j16 --target llama-bench llama-perplexity
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_EMBEDDED_GDN_Q8=1 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 100 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-gdn-q8-embedded ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_EMBEDDED_GDN_Q8=1 /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/sm70-gdn-q8-flat-control ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --format csv --force-export=true /tmp/sm70-gdn-q8-embedded.nsys-rep
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_sum --format csv --force-export=true /tmp/sm70-gdn-q8-flat-control.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so

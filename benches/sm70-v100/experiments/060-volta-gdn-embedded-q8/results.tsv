@@ -1,0 +1,11 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	embedded_a	qwen35-0.8b-q8_0	100	tg128_tok_s	325.917954	0.668359		rejected
+generation	flattened_control	qwen35-0.8b-q8_0	100	tg128_tok_s	325.991607	0.285592	0.0000	control
+generation	embedded_b	qwen35-0.8b-q8_0	100	tg128_tok_s	325.837733	0.738954		rejected
+generation	embedded_mean	qwen35-0.8b-q8_0	200	tg128_tok_s	325.877844		-0.0349	rejected
+profile	embedded	qwen35-0.8b-q8_0	36	kernel_total_ms	0.403556			rejected
+profile	flattened_control	qwen35-0.8b-q8_0	36	kernel_total_ms	0.409863			control
+profile	kernel_time_saved	qwen35-0.8b-q8_0	1	kernel_total_ms	0.006307			rejected
+resource	embedded	sm70	1	registers	50			rejected
+resource	flattened_control	sm70	1	registers	48			control
+validation	logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
