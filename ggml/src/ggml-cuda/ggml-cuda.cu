@@ -3866,6 +3866,38 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         return 2;
     }
 
+    if (i + 2 < cgraph->n_nodes &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA &&
+            ggml_cuda_can_fuse(cgraph, i, { GGML_OP_RMS_NORM, GGML_OP_MUL }, {})) {
+        const ggml_op ops[] = { GGML_OP_RMS_NORM, GGML_OP_MUL, GGML_OP_GET_ROWS };
+        const int outputs[] = { i + 1, i + 2 };
+        ggml_tensor * mul = cgraph->nodes[i + 1];
+        ggml_tensor * get_rows = cgraph->nodes[i + 2];
+        const bool exact_row = get_rows->op == GGML_OP_GET_ROWS && get_rows->src[0] == mul &&
+            get_rows->src[1] != nullptr && get_rows->src[1]->type == GGML_TYPE_I32 &&
+            ggml_nelements(get_rows->src[1]) == 1 && ggml_are_same_shape(mul, get_rows) &&
+            get_rows->type == GGML_TYPE_F32 && ggml_is_contiguous(get_rows) &&
+            get_rows->ne[0] == 1024 && get_rows->ne[1] == 1 &&
+            get_rows->ne[2] == 1 && get_rows->ne[3] == 1;
+        const bool subgraph_ok = exact_row && ggml_can_fuse_subgraph(cgraph, i, 3, ops, outputs, 2);
+        bool prequantize = false;
+        // In-place output is safe: every x load precedes the one-block reduction barrier.
+        if (subgraph_ok) {
+            for (int j = i + 3; j < cgraph->n_nodes; ++j) {
+                const ggml_tensor * consumer = cgraph->nodes[j];
+                if (consumer->op == GGML_OP_MUL_MAT && consumer->src[1] == get_rows &&
+                        ggml_cuda_should_fuse_mul_mat_vec_q(consumer)) {
+                    prequantize = true;
+                    break;
+                }
+            }
+        }
+        if (prequantize) {
+            ggml_cuda_op_rms_norm_fused(*cuda_ctx, node, mul, get_rows, true);
+            return 2;
+        }
+    }
+
     if (ggml_cuda_can_fuse(cgraph, i, { GGML_OP_RMS_NORM, GGML_OP_MUL }, {})) {
         ggml_tensor * mul = cgraph->nodes[i + 1];
         const int cc = ggml_cuda_info().devices[cuda_ctx->device].cc;
@@ -3882,7 +3914,7 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
                 }
             }
         }
-        ggml_cuda_op_rms_norm_fused(*cuda_ctx, node, mul, prequantize);
+        ggml_cuda_op_rms_norm_fused(*cuda_ctx, node, mul, mul, prequantize);
         return 1;
     }
 

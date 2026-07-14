@@ -1,0 +1,3 @@
+variant	arch	registers_per_thread	static_shared_bytes	dynamic_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+rms_q8_no_copy	sm70	38	0	4224	0	0	388
+rms_copy_q8	sm70	38	0	4224	0	0	396
