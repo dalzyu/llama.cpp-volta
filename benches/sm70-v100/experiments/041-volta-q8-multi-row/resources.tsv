@@ -1,0 +1,5 @@
+kernel	configuration	registers_per_thread	shared_bytes	stack_bytes	local_bytes
+q8_0-normal-unfused	one-row-control	64	128	0	0
+q8_0-normal-unfused	two-row-retained	48	256	0	0
+q8_0-normal-fused	one-row-control	56	256	0	0
+q8_0-normal-fused	one-row-retained	56	256	0	0

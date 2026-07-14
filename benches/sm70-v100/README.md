@@ -89,6 +89,11 @@ selections for 256-wide flash attention. The 64-column MMA kernel average falls
 memory swizzle experiment. The swizzle was effective in its original kernel but
 regressed ggml and was not retained.
 
+Experiment [041](experiments/041-volta-q8-multi-row/) computes two adjacent
+rows per normal-K, non-fused Q8_0 MMVQ block on Volta. The non-fused kernel
+average falls 19.40%, while the dominant output-projection grid falls 29.09%.
+The fused kernel keeps one row, while small-K keeps its existing geometry.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
@@ -107,6 +112,8 @@ regressed ggml and was not retained.
 | Qwen 3.5 Q8_0 flash attention pp512 | 14769.94 | 14894.49 | +0.84% |
 | Qwen 3.5 Q4_0 flash attention tg128 | 268.537 | 270.475 | +0.72% |
 | Qwen 3.5 Q8_0 flash attention tg128 | 248.564 | 250.081 | +0.61% |
+| Qwen 3.5 Q8_0 multi-row MMVQ tg128 | 248.167 | 262.326 | +5.71% |
+| Qwen 3.5 Q4_0 multi-row output tg128 | 267.079 | 276.683 | +3.60% |
 
 Peak VRAM is unchanged. The vector-row and attention reduction-order changes
 produce final eight-chunk Qwen 3.5 PPL estimates of 21.8608 for Q4_0 and
