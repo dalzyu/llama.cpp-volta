@@ -1,0 +1,5 @@
+model	variant	repetitions	cold_samples_ignored	pp512_tok_s	pp512_stddev	change_pct	tg128_tok_s	tg128_stddev
+qwen35-0.8b-q4_0	control	15	1	14011.421	427.879	0.00	310.863	0.115
+qwen35-0.8b-q4_0	q4_0_half2_2warp	15	1	14793.329	412.785	5.58	310.945	0.116
+gemma4-12b-q4_0	control	15	1	1495.140	7.104	0.00	70.207	0.148
+gemma4-12b-q4_0	q4_0_half2_2warp	15	1	1684.107	8.760	12.64	70.014	0.207

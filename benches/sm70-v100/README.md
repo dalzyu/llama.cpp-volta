@@ -45,6 +45,10 @@ tg128, Q4_0 matrix-vector kernels account for 72.8% of GPU kernel time.
 Experiment [032](experiments/032-volta-q2-k-dequant-blocks/) packs two Q2_K
 dequantization work units per 128-thread block; on Qwen 3.6 p512 it improves
 the paired control from 690.861 to 719.799 tok/s (+4.19%).
+Experiment [033](experiments/033-volta-q4_0-half2-dequant/) vectorizes the
+Volta Q4_0 half destination and packs two dequantization work units per
+64-thread block; the final Qwen 3.5 p512 comparison is 14011.421 to 14793.329
+tok/s (+5.58%).
 
 ## Retained optimizations
 
@@ -64,6 +68,7 @@ dequantization uses guarded two-superblock blocks on Volta.
 | Qwen 3.6 fused Q2_K occupancy | 29.501 | 29.659 | +0.53% |
 | Qwen 3.6 K-quant device code | 29.758 | 30.716 | +3.22% |
 | Qwen 3.6 Q2_K p512 dequantization | 690.861 | 719.799 | +4.19% |
+| Qwen 3.5 Q4_0 p512 dequantization | 14011.421 | 14793.329 | +5.58% |
 
 Peak VRAM is unchanged. Eight-chunk perplexity remains
 exactly equal to baseline across all four models. Final focused backend coverage
