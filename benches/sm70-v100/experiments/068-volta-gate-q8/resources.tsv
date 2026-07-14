@@ -1,0 +1,6 @@
+variant	arch	block_x	block_y	grid_x	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+separate_gate	sm70	32	2	1792	48	0	0	0	392
+gate_q8_rows1	sm70	32	32	112	38	128	0	0	392
+gate_q8_rows2	sm70	32	16	112	64	128	0	0	392
+gate_q8_rows4	sm70	32	8	112	80	128	0	0	392
+gate_q8_rows2_cached	sm70	32	16	112	62	128	0	0	392

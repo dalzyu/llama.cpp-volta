@@ -860,6 +860,72 @@ static __global__ void mul_mat_vec_q8_0_warp_rows_gate(
     }
 }
 
+__launch_bounds__(512, 2)
+static __global__ void mul_mat_vec_q8_0_warp_rows_gate_q8_1(
+        const void * vx, const void * vgate, const block_q8_1 * y,
+        float * dst, block_q8_1 * dst_q8_1) {
+    constexpr int qk = QK8_0;
+    constexpr int qi = QI8_0;
+    constexpr int vdr = VDR_Q8_0_Q8_1_MMVQ;
+    constexpr int warp_size = 32;
+    constexpr int ncols_x = 1024;
+    constexpr int blocks_per_row_x = ncols_x/qk;
+    constexpr int blocks_per_warp_iter = vdr*warp_size/qi;
+
+    ggml_cuda_pdl_sync();
+
+    const int row0 = QK8_1*blockIdx.x + threadIdx.y;
+    const int row1 = row0 + blockDim.y;
+    const block_q8_0 * x0 = (const block_q8_0 *) vx + row0*blocks_per_row_x;
+    const block_q8_0 * x1 = (const block_q8_0 *) vx + row1*blocks_per_row_x;
+    const block_q8_0 * gate0 = (const block_q8_0 *) vgate + row0*blocks_per_row_x;
+    const block_q8_0 * gate1 = (const block_q8_0 *) vgate + row1*blocks_per_row_x;
+    float tmp0 = 0.0f;
+    float tmp1 = 0.0f;
+    float tmp_gate0 = 0.0f;
+    float tmp_gate1 = 0.0f;
+
+    for (int kbx = threadIdx.x/(qi/vdr); kbx < blocks_per_row_x; kbx += blocks_per_warp_iter) {
+        const int kby = kbx*(qk/QK8_1);
+        const int kqs = vdr*(threadIdx.x % (qi/vdr));
+        tmp0 += vec_dot_q8_0_q8_1(x0, &y[kby], kbx, kqs);
+        tmp1 += vec_dot_q8_0_q8_1(x1, &y[kby], kbx, kqs);
+        tmp_gate0 += vec_dot_q8_0_q8_1(gate0, &y[kby], kbx, kqs);
+        tmp_gate1 += vec_dot_q8_0_q8_1(gate1, &y[kby], kbx, kqs);
+    }
+
+    tmp0 = warp_reduce_sum<warp_size>(tmp0);
+    tmp1 = warp_reduce_sum<warp_size>(tmp1);
+    tmp_gate0 = warp_reduce_sum<warp_size>(tmp_gate0);
+    tmp_gate1 = warp_reduce_sum<warp_size>(tmp_gate1);
+
+    __shared__ float results[QK8_1];
+    if (threadIdx.x == 0) {
+        const float result0 = tmp0*ggml_cuda_op_silu_single(tmp_gate0);
+        const float result1 = tmp1*ggml_cuda_op_silu_single(tmp_gate1);
+        dst[row0] = result0;
+        dst[row1] = result1;
+        results[threadIdx.y] = result0;
+        results[threadIdx.y + blockDim.y] = result1;
+    }
+    __syncthreads();
+
+    if (threadIdx.y != 0) {
+        return;
+    }
+
+    const float value = results[threadIdx.x];
+    const float amax = warp_reduce_max<QK8_1>(fabsf(value));
+    const float sum = warp_reduce_sum<QK8_1>(value);
+    const float d = amax/127.0f;
+    const int8_t quant = amax == 0.0f ? 0 : roundf(value/d);
+
+    dst_q8_1[blockIdx.x].qs[threadIdx.x] = quant;
+    if (threadIdx.x == 0) {
+        dst_q8_1[blockIdx.x].ds = make_half2(d, sum);
+    }
+}
+
 __launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
 static __global__ void mul_mat_vec_q8_0_grouped(
         const void * vx0, const void * vx1, const void * vx2, const block_q8_1 * y,
@@ -2156,6 +2222,30 @@ void ggml_cuda_mul_mat_vec_q(
 
     const int64_t s12 = ne11*s11;
     const int64_t s13 = ne12*s12;
+
+    const bool use_gate_q8_1 = fusion != nullptr && fusion->prequantize &&
+        use_q8_1_cache && src0->type == GGML_TYPE_Q8_0 && fusion_local.gate != nullptr &&
+        fusion_local.x_bias == nullptr && fusion_local.gate_bias == nullptr &&
+        fusion_local.x_scale == nullptr && fusion_local.gate_scale == nullptr &&
+        fusion_local.glu_op == GGML_GLU_OP_SWIGLU &&
+        ne00 == 1024 && ne01 == 3584 && ne02 == 1 && ne03 == 1 &&
+        ne10 == 1024 && ne11 == 1 && ne12 == 1 && ne13 == 1 &&
+        ne0 == 3584 && ne1 == 1 && ne2 == 1 && ne3 == 1 &&
+        s01 == ne00/QK8_0 && s1 == ne0 &&
+        ggml_is_contiguous(src0) && ggml_is_contiguous(fusion->gate) &&
+        ggml_is_contiguous(src1) && ggml_is_contiguous(dst);
+    if (use_gate_q8_1) {
+        const size_t dst_q8_1_size = ne0*sizeof(block_q8_1)/QK8_1;
+        char * dst_q8_1 = ctx.q8_1_cache_get(dst, dst_q8_1_size);
+        if (dst_q8_1 == nullptr) {
+            dst_q8_1 = ctx.q8_1_cache_alloc(dst, dst_q8_1_size);
+        }
+        const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(
+            dim3(ne0/QK8_1, 1, 1), dim3(32, QK8_1/2, 1), 0, stream);
+        ggml_cuda_kernel_launch(mul_mat_vec_q8_0_warp_rows_gate_q8_1, launch_params,
+            src0->data, fusion_local.gate, (const block_q8_1 *) src1_q8_1, dst_d, (block_q8_1 *) dst_q8_1);
+        return;
+    }
 
     // For MUL_MAT_ID the memory layout is different than for MUL_MAT:
     const int64_t ncols_dst          = ids ? ne2  : ne1;

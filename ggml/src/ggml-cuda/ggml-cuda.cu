@@ -3696,6 +3696,16 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
                 ggml_cuda_mm_fusion_args_host fusion_data{};
                 fusion_data.gate   = gate->src[0];
                 fusion_data.glu_op = ggml_get_glu_op(glu);
+                if (ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+                    for (int j = i + 3; j < cgraph->n_nodes; ++j) {
+                        const ggml_tensor * consumer = cgraph->nodes[j];
+                        if (consumer->op == GGML_OP_MUL_MAT && consumer->src[1] == glu &&
+                                ggml_cuda_should_fuse_mul_mat_vec_q(consumer)) {
+                            fusion_data.prequantize = true;
+                            break;
+                        }
+                    }
+                }
 
                 ggml_cuda_mul_mat_vec_q(*cuda_ctx, src0, src1, ids, glu, &fusion_data);
                 fused_mul_mat_vec = true;
