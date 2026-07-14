@@ -1,0 +1,5 @@
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} cmake --build build --target llama-bench -j 8
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DEBUG_GRAPH_TIMING=1 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 3 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+
+# Reference used for device graph requirements and launch semantics:
+# https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#device-graph-launch

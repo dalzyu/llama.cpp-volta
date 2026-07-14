@@ -1,0 +1,9 @@
+area	variant	model_or_case	repetitions	metric	value	result
+host	set_device	qwen35-0.8b-q8_0	256	average_us	0.031	rejected_target
+host	graph_checks	qwen35-0.8b-q8_0	256	average_us	2.203	rejected_target
+host	cache_setup	qwen35-0.8b-q8_0	256	average_us	0.023	rejected_target
+host	graph_lookup	qwen35-0.8b-q8_0	256	average_us	0.035	rejected_target
+host	prelaunch	qwen35-0.8b-q8_0	256	average_us	0.016	rejected_target
+host	cuda_graph_launch	qwen35-0.8b-q8_0	256	average_us	29.406	asynchronous
+host	postlaunch	qwen35-0.8b-q8_0	256	average_us	0.012	rejected_target
+graph	nodes	qwen35-0.8b-q8_0	1	count	1374	observed
