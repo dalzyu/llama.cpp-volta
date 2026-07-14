@@ -1,4 +1,5 @@
 test	passed	total	result
+GET_ROWS backend cases	47	47	pass
 K-quant single-column MUL_MAT	20	20	pass
 Q4_0 single-column MUL_MAT	14	14	pass
 Q8_0 single-column MUL_MAT	16	16	pass
