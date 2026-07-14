@@ -1,0 +1,3 @@
+kernel	configuration	threads_per_block	registers_per_thread	shared_bytes	stack_bytes	local_bytes
+l2-norm-f32	single-control	32	32	0	0	0
+l2-norm-f32	paired-retained	32	40	0	0	0

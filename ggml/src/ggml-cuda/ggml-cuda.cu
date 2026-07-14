@@ -3045,6 +3045,26 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
 
     ggml_tensor * node = cgraph->nodes[i];
 
+    if (node->op == GGML_OP_L2_NORM && i + 2 < cgraph->n_nodes &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+        ggml_tensor * view = cgraph->nodes[i + 1];
+        ggml_tensor * other = cgraph->nodes[i + 2];
+        const ggml_op ops[] = { GGML_OP_L2_NORM, GGML_OP_VIEW, GGML_OP_L2_NORM };
+        const int outputs[] = { i, i + 1, i + 2 };
+        if (view->op == GGML_OP_VIEW && other->op == GGML_OP_L2_NORM && other->src[0] == view &&
+                node->type == GGML_TYPE_F32 && other->type == GGML_TYPE_F32 &&
+                node->ne[0] < 1024 && node->view_src == nullptr && other->view_src == nullptr &&
+                node->data != other->data && ggml_are_same_shape(node, other) &&
+                ggml_are_same_layout(node->src[0], other->src[0]) &&
+                memcmp(node->op_params, other->op_params, sizeof(float)) == 0 &&
+                ggml_is_contiguous(node) && ggml_is_contiguous(other) &&
+                ggml_is_contiguous_rows(node->src[0]) && ggml_is_contiguous_rows(other->src[0]) &&
+                ggml_can_fuse_subgraph(cgraph, i, 3, ops, outputs, 3)) {
+            ggml_cuda_op_l2_norm_pair(*cuda_ctx, node, other);
+            return 2;
+        }
+    }
+
     // gated_delta_net -> cpy: scatter recurrent-state snapshots into the cache
     if (node->op == GGML_OP_GATED_DELTA_NET) {
         ggml_cuda_gated_delta_net_fused_cache fused_state_cpy;
