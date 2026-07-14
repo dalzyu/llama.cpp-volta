@@ -782,6 +782,52 @@ static __global__ void mul_mat_vec_q8_0_warp_rows(
 }
 
 __launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
+static __global__ void mul_mat_vec_q8_0_bias(
+        const void * vx, const block_q8_1 * y, const float * bias, float * dst,
+        const uint32_t ncols_x, const uint32_t stride_row_x) {
+    constexpr int qk = QK8_0;
+    constexpr int qi = QI8_0;
+    constexpr int vdr = VDR_Q8_0_Q8_1_MMVQ;
+    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int blocks_per_iter = vdr*2*warp_size/qi;
+
+    ggml_cuda_pdl_sync();
+
+    const int tid = warp_size*threadIdx.y + threadIdx.x;
+    const int row = blockIdx.x;
+    const int blocks_per_row_x = ncols_x/qk;
+    const block_q8_0 * x = (const block_q8_0 *) vx + row*stride_row_x;
+    float x_bias = 0.0f;
+    if (tid == 0) {
+        x_bias = bias[row];
+    }
+    float tmp = 0.0f;
+
+    for (int kbx = tid/(qi/vdr); kbx < blocks_per_row_x; kbx += blocks_per_iter) {
+        const int kby = kbx*(qk/QK8_1);
+        const int kqs = vdr*(tid % (qi/vdr));
+        tmp += vec_dot_q8_0_q8_1(x, &y[kby], kbx, kqs);
+    }
+
+    __shared__ float tmp_shared[warp_size];
+    if (threadIdx.y > 0) {
+        tmp_shared[threadIdx.x] = tmp;
+    }
+    __syncthreads();
+    if (threadIdx.y > 0) {
+        return;
+    }
+
+    tmp += tmp_shared[threadIdx.x];
+    tmp = warp_reduce_sum<warp_size>(tmp);
+    if (tid == 0) {
+        float result = tmp;
+        result += x_bias;
+        dst[row] = result;
+    }
+}
+
+__launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
 static __global__ void mul_mat_vec_q8_0_warp_rows_gate(
         const void * vx, const void * vgate, const block_q8_1 * y, float * dst,
         const uint32_t ncols_x, const uint32_t stride_row_x) {
@@ -1248,6 +1294,14 @@ static void mul_mat_vec_q_switch_fusion(
             return;
         }
         if (has_fusion && dense_layout && block_nums.x == nrows_x && volta) {
+            if (fusion.x_bias != nullptr && fusion.gate == nullptr &&
+                fusion.gate_bias == nullptr && fusion.x_scale == nullptr && fusion.gate_scale == nullptr) {
+                const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(
+                    block_nums, block_dims, 0, stream);
+                ggml_cuda_kernel_launch(mul_mat_vec_q8_0_bias, launch_params,
+                    vx, (const block_q8_1 *) vy, (const float *) fusion.x_bias, dst, ncols_x, stride_row_x);
+                return;
+            }
             if (fusion.gate != nullptr && fusion.x_bias == nullptr && fusion.gate_bias == nullptr &&
                 fusion.x_scale == nullptr && fusion.gate_scale == nullptr && fusion.glu_op == GGML_GLU_OP_SWIGLU) {
                 const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(

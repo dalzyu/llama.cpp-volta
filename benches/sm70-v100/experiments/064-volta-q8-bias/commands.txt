@@ -1,0 +1,27 @@
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -pl 150
+sudo -n /usr/bin/nvidia-smi -i ${V100_GPU_1_UUID} -lgc 1200,1200
+cmake --build build --target llama-bench llama-perplexity test-backend-ops -j 8
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_Q8_BIAS_WARP_ROWS=1 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 128 -r 30 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 -o json
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/q8-bias-candidate.logits
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_Q8_BIAS_WARP_ROWS=1 ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/q8-bias-control.logits
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_GRAPHS=1 ./build/bin/llama-perplexity -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/q8-bias-eager.logits
+cmp /tmp/q8-bias-candidate.logits /tmp/q8-bias-control.logits
+cmp /tmp/q8-bias-eager.logits /tmp/q8-bias-control.logits
+sha256sum /tmp/q8-bias-candidate.logits /tmp/q8-bias-control.logits /tmp/q8-bias-eager.logits
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/q8-bias-candidate ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} GGML_CUDA_DISABLE_Q8_BIAS_WARP_ROWS=1 /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/q8-bias-control ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 32 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT_VEC_FUSION
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 4 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool initcheck --error-exitcode=99 ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q8_0.gguf -p 0 -n 4 -r 1 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ctest --test-dir build --output-on-failure -R '^test-llama-archs$'
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen3.5-0.8B-Q4_0.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup -o json
+CUDA_VISIBLE_DEVICES=${V100_GPU_1_UUID} ./build/bin/llama-bench -m build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 0 -n 128 -r 5 -ngl 99 -sm none -mg 0 -fa auto -b 2048 -ub 512 --no-warmup -o json
