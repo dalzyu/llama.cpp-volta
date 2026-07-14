@@ -1,0 +1,24 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+same_binary	generic_a	qwen35-0.8b-q8_0	20	tg128_tok_s	284.236788	1.946404	0.0000	control
+same_binary	warp_gate_a	qwen35-0.8b-q8_0	20	tg128_tok_s	284.823653	1.978615	0.2065	retained
+same_binary	generic_b	qwen35-0.8b-q8_0	20	tg128_tok_s	283.334704	2.010960	0.0000	control
+same_binary	warp_gate_b	qwen35-0.8b-q8_0	20	tg128_tok_s	284.503289	1.912194	0.4124	retained
+same_binary	generic_mean	qwen35-0.8b-q8_0	40	tg128_tok_s	283.785746		0.0000	control
+same_binary	warp_gate_mean	qwen35-0.8b-q8_0	40	tg128_tok_s	284.663471		0.3093	retained
+final	warp_gate	qwen35-0.8b-q8_0	30	tg128_tok_s	285.319915	2.008004		retained
+prompt	warp_gate	qwen35-0.8b-q8_0	10	pp512_tok_s	14410.195735	2778.959042		unchanged
+cross_quant	final	qwen35-0.8b-q4_0	10	tg128_tok_s	295.240177	4.013369		unchanged
+cross_model	final	qwen36-27b-q2_k	5	tg128_tok_s	31.779982	0.037166		unchanged
+cross_model	final	gemma4-12b-q4_k_xl	5	tg128_tok_s	68.850927	0.313039		unchanged
+profile	generic_gate	qwen35-0.8b-q8_0	9216	kernel_total_ms	146.430842		0.0000	control
+profile	warp_gate	qwen35-0.8b-q8_0	9216	kernel_total_ms	137.106348		-6.3678	retained
+profile	generic_bias	qwen35-0.8b-q8_0	11520	kernel_total_ms	90.027923		0.0000	control
+profile	warp_bias	qwen35-0.8b-q8_0	11520	kernel_total_ms	91.986443		2.1755	rejected
+packing	rows1	qwen35-0.8b-q8_0	30720	kernel_avg_us	14.9072		0.2145	rejected
+packing	rows2	qwen35-0.8b-q8_0	30720	kernel_avg_us	14.8753		0.0000	retained
+packing	rows4	qwen35-0.8b-q8_0	9216	kernel_avg_us	14.9005		0.2640	rejected
+packing	rows8	qwen35-0.8b-q8_0	9216	kernel_avg_us	15.2519		2.6285	rejected
+validation	backend_ops	q8_0-fusion	30	passed	30			pass
+validation	memcheck	q8_0-fusion	1	errors	0			pass
+validation	ppl	qwen35-0.8b-q8_0	8	wikitext2_ppl	18.3641	1.23699	0.0000	pass
+validation	ppl	qwen35-0.8b-q4_0	8	wikitext2_ppl	21.8604	1.50866	0.0000	pass
