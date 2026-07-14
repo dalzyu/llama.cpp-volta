@@ -1,9 +1,25 @@
 test	passed	total	result
-GET_ROWS backend cases	47	47	pass
+Complete CUDA backend suite	12995	12995	pass
 K-quant single-column MUL_MAT	20	20	pass
 Q4_0 single-column MUL_MAT	14	14	pass
-Q8_0 single-column MUL_MAT	16	16	pass
-Gemma 4 12B eight-chunk PPL	1	1	308.3287
-Qwen 3.5 Q4_0 eight-chunk PPL	1	1	21.8601
-Qwen 3.5 Q8_0 eight-chunk PPL	1	1	18.3634
-Qwen 3.6 27B eight-chunk PPL	1	1	7.1732
+Q8_0 single-column MUL_MAT	17	17	pass
+GET_ROWS backend cases	47	47	pass
+256-wide F16 FLASH_ATTN_EXT	112	112	pass
+320-wide F16 FLASH_ATTN_EXT	16	16	pass
+RMS_NORM	21	21	pass
+RMS_NORM_MUL_ROPE	72	72	pass
+L2_NORM	20	20	pass
+GATED_DELTA_NET	36	36	pass
+Focused graph fusion sweep	82	82	pass
+CONCAT and CPY sweep	370	370	pass
+Q8_0 MUL_MAT_VEC_FUSION	30	30	pass
+320-wide attention memcheck errors	0	0	pass
+Qwen 3.5 Q8_0 model memcheck errors	0	0	pass
+Gemma 4 12B eight-chunk PPL	1	1	308.9815
+Qwen 3.5 Q4_0 eight-chunk PPL	1	1	21.8604
+Qwen 3.5 Q8_0 eight-chunk PPL	1	1	18.3641
+Qwen 3.6 27B eight-chunk PPL	1	1	7.1734
+Gemma 4 12B 32-chunk PPL	1	1	185.5480
+Qwen 3.5 Q4_0 32-chunk PPL	1	1	18.6990
+Qwen 3.5 Q8_0 32-chunk PPL	1	1	15.4868
+Qwen 3.6 27B 32-chunk PPL	1	1	6.1046

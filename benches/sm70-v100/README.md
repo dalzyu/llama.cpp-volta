@@ -37,6 +37,24 @@ WikiText-2 gate as the Gemma 4 baseline.
 
 Model sources and hashes are recorded under `models/`.
 
+## Final aggregate
+
+Revision `d3b5d60f1` passes the complete 12,995-case CUDA backend suite. The
+headline final measurements repeat the original baseline command at the 150 W
+power limit with unlocked clocks and only the V100 visible.
+
+| Model | pp512 baseline | pp512 final | Change | tg128 baseline | tg128 final | Change |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Gemma 4 12B Q4_K_XL | 1509.341 | 1685.066 | +11.64% | 69.685 | 70.259 | +0.82% |
+| Qwen 3.5 0.8B Q4_0 | 14371.067 | 15725.102 | +9.42% | 304.638 | 341.850 | +12.22% |
+| Qwen 3.5 0.8B Q8_0 | 15253.253 | 15897.319 | +4.22% | 277.522 | 320.724 | +15.57% |
+| Qwen 3.6 27B Q2_K | 691.610 | 726.682 | +5.07% | 27.721 | 31.963 | +15.30% |
+
+The directly comparable eight-chunk perplexity changes are much smaller than
+their estimate uncertainties. A separate 32-chunk final run and the full
+results are under `final/`. No retained change adds a persistent GPU
+allocation, so peak model VRAM is unchanged.
+
 ## Profiling
 
 Nsight Systems kernel summaries are under `profiles/`. For pp512, Q4_0
@@ -100,6 +118,32 @@ transfer per thread. Total gather time falls 14.94%. Wider copies, fused Q8_0
 warp partitioning, explicit activation reuse, and vector Q8_1 quantization are
 recorded as rejected.
 
+Experiment [043](experiments/043-volta-rms-norm-vec4/) uses 256 threads and
+float4 transfers for aligned large fused RMS normalization. The affected
+kernel falls 22.30%; Q8_0 and Q4_0 generation improve 0.88% and 0.96%.
+
+Experiments [044](experiments/044-volta-l2-norm-pair/) through
+[047](experiments/047-volta-concat-cpy/) remove small recurrent-graph launches:
+paired Q/K L2 normalization, the GDN add-softplus-multiply chain, a strided
+attention sigmoid gate, and concat-to-state copy. Their target chains fall by
+46.49%, 38.56%, 59.32%, and 10.47% respectively.
+
+Experiment [050](experiments/050-volta-concat-tail/) specializes the exact
+Qwen recurrent concat tail. Its kernel falls 33.76% and Q8_0/Q4_0 generation
+improves 1.02%/0.98% in same-binary controls.
+
+Experiments [051](experiments/051-volta-q8-warp-rows/) through
+[053](experiments/053-volta-q8-fused-gate/) replace dense non-fused and SWIGLU
+Q8_0 MMVQ with one complete row per warp, eliminate repeated row-base
+addressing, and retain two rows per block. The non-fused kernel falls 4.14%,
+the gate kernel falls 6.37%, and paired generation gains are 1.18%, 0.168%,
+and 0.309%.
+
+Experiment [054](experiments/054-volta-fattn-320-fallback/) resolves a
+pre-existing 320-wide Volta FlashAttention launch failure discovered by the
+full validation sweep. That head size now stays on the existing tile kernel;
+the optimized 256-wide path remains unchanged.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
@@ -122,9 +166,24 @@ recorded as rejected.
 | Qwen 3.5 Q4_0 multi-row output tg128 | 267.079 | 276.683 | +3.60% |
 | Qwen 3.5 Q8_0 float4 get_rows tg128 | 262.520 | 263.281 | +0.29% |
 | Qwen 3.6 Q2_K float4 get_rows tg128 | 31.075 | 31.389 | +1.01% |
+| Qwen 3.5 Q8_0 float4 RMS norm tg128 | 263.288 | 265.605 | +0.88% |
+| Qwen 3.5 Q4_0 float4 RMS norm tg128 | 276.652 | 279.316 | +0.96% |
+| Qwen 3.5 Q8_0 paired L2 norm tg128 | 265.539 | 270.265 | +1.78% |
+| Qwen 3.5 Q4_0 paired L2 norm tg128 | 279.091 | 284.526 | +1.95% |
+| Qwen 3.5 Q8_0 GDN gate fusion tg128 | 270.477 | 273.337 | +1.06% |
+| Qwen 3.5 Q4_0 GDN gate fusion tg128 | 284.441 | 288.139 | +1.30% |
+| Qwen 3.5 Q8_0 strided sigmoid fusion tg128 | 273.303 | 275.967 | +0.97% |
+| Qwen 3.5 Q4_0 strided sigmoid fusion tg128 | 288.163 | 291.107 | +1.02% |
+| Qwen 3.5 Q8_0 concat-copy fusion tg128 | 274.248 | 276.772 | +0.92% |
+| Qwen 3.5 Q4_0 concat-copy fusion tg128 | 289.130 | 292.282 | +1.09% |
+| Qwen 3.5 Q8_0 recurrent tail copy tg128 | 277.348 | 280.165 | +1.02% |
+| Qwen 3.5 Q4_0 recurrent tail copy tg128 | 292.817 | 295.692 | +0.98% |
+| Qwen 3.5 Q8_0 warp-row MMVQ tg128 | 280.139 | 283.442 | +1.18% |
+| Qwen 3.5 Q8_0 row-base addressing tg128 | 283.644 | 284.120 | +0.168% |
+| Qwen 3.5 Q8_0 fused gate rows tg128 | 283.786 | 284.663 | +0.309% |
 
 Peak VRAM is unchanged. The vector-row and attention reduction-order changes
-produce final eight-chunk Qwen 3.5 PPL estimates of 21.8608 for Q4_0 and
-18.3635 for Q8_0. Focused backend coverage passes 112/112 modified flash
-attention cases in addition to the earlier K-quant, Q4_0, and Q8_0 suites.
-The preceding retained-build measurements and commands are under `final/`.
+produce final eight-chunk Qwen 3.5 PPL estimates of 21.8604 for Q4_0 and
+18.3641 for Q8_0. The complete CUDA backend suite passes 12,995/12,995 cases,
+and Compute Sanitizer reports zero errors for the whole Q8_0 target graph.
+The final retained-build measurements and commands are under `final/`.
