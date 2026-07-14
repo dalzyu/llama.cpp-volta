@@ -101,11 +101,25 @@ static __global__ void dequantize_block_q4_0(const void * __restrict__ vx, dst_t
     const float d = __half2float(x->d);
     const float dm = -8*d;
 
-    const uint8_t * q = x->qs + 4*il;
-
-    for (int l = 0; l < 4; ++l) {
-        y[l+ 0] = ggml_cuda_cast<dst_t>(d * (q[l] & 0xF) + dm);
-        y[l+16] = ggml_cuda_cast<dst_t>(d * (q[l] >>  4) + dm);
+    if constexpr (std::is_same_v<dst_t, half>) {
+        uint32_t q;
+        ggml_cuda_memcpy_1<sizeof(q), 2>(&q, x->qs + 4*il);
+        const int qlo = __vsubss4(q & 0x0F0F0F0F, 0x08080808);
+        const int qhi = __vsubss4((q >> 4) & 0x0F0F0F0F, 0x08080808);
+        const int8_t * qlo8 = (const int8_t *) &qlo;
+        const int8_t * qhi8 = (const int8_t *) &qhi;
+        half2 * y2 = (half2 *) y;
+        y2[0] = __float22half2_rn(make_float2(d*qlo8[0], d*qlo8[1]));
+        y2[1] = __float22half2_rn(make_float2(d*qlo8[2], d*qlo8[3]));
+        y2[8] = __float22half2_rn(make_float2(d*qhi8[0], d*qhi8[1]));
+        y2[9] = __float22half2_rn(make_float2(d*qhi8[2], d*qhi8[3]));
+    } else {
+        const uint8_t * q = x->qs + 4*il;
+#pragma unroll
+        for (int l = 0; l < 4; ++l) {
+            y[l+ 0] = ggml_cuda_cast<dst_t>(d * (q[l] & 0xF) + dm);
+            y[l+16] = ggml_cuda_cast<dst_t>(d * (q[l] >>  4) + dm);
+        }
     }
 }
 
