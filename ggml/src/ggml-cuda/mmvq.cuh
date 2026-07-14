@@ -14,6 +14,11 @@ void ggml_cuda_mul_mat_vec_q(ggml_backend_cuda_context & ctx,
 bool ggml_cuda_mul_mat_vec_q_grouped(ggml_backend_cuda_context & ctx,
     const ggml_tensor * dst0, const ggml_tensor * dst1, const ggml_tensor * dst2);
 
+bool ggml_cuda_mul_mat_vec_q_gdn(ggml_backend_cuda_context & ctx,
+    const ggml_tensor * alpha, const ggml_tensor * beta,
+    const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
+    ggml_tensor * dst_gate, ggml_tensor * dst_beta);
+
 void ggml_cuda_op_mul_mat_vec_q(
     ggml_backend_cuda_context & ctx,
     const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, const char * src0_dd_i, const float * src1_ddf_i,

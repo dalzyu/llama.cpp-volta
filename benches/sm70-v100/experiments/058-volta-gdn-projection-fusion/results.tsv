@@ -1,0 +1,25 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	candidate_a	qwen35-0.8b-q8_0	30	tg128_tok_s	322.587142	1.193915		retained
+generation	disabled_control	qwen35-0.8b-q8_0	30	tg128_tok_s	310.056667	0.486902	0.0000	control
+generation	candidate_b	qwen35-0.8b-q8_0	30	tg128_tok_s	320.953334	0.420195		retained
+generation	candidate_mean	qwen35-0.8b-q8_0	60	tg128_tok_s	321.770238		3.7779	retained
+generation	candidate_a	qwen35-0.8b-q4_0	50	tg128_tok_s	331.541609	1.242797		retained
+generation	disabled_control	qwen35-0.8b-q4_0	50	tg128_tok_s	318.426579	0.330373	0.0000	control
+generation	candidate_b	qwen35-0.8b-q4_0	50	tg128_tok_s	331.271588	0.412801		retained
+generation	candidate_mean	qwen35-0.8b-q4_0	100	tg128_tok_s	331.406598		4.0763	retained
+profile	gdn_fused	qwen35-0.8b-q8_0	36	kernel_total_ms	0.099040			retained
+profile	submissions_removed	qwen35-0.8b-q8_0	1	kernel_launches	108			retained
+profile	affected_time_saved	qwen35-0.8b-q8_0	1	kernel_total_ms	0.202527			retained
+profile	gdn_fused	qwen35-0.8b-q4_0	36	kernel_total_ms	0.104096			retained
+profile	submissions_removed	qwen35-0.8b-q4_0	1	kernel_launches	108			retained
+profile	affected_time_saved	qwen35-0.8b-q4_0	1	kernel_total_ms	0.291298			retained
+precursor	qkv_alpha_flat	qwen35-0.8b-q8_0	60	tg128_tok_s	315.685692		1.64	superseded
+precursor	qkv_alpha_flat	qwen35-0.8b-q4_0		tg128_tok_s	313.322352		-1.63	rejected
+precursor	qkv_alpha_embedded	qwen35-0.8b-q4_0		tg128_tok_s	314.741094		-1.40	rejected
+validation	logits	qwen35-0.8b-q8_0	128	sha256	acb248fa3c62d5f085a16556485a9d0d5e3b6bdf5c58a392cf734724f885c274			pass
+validation	logits	qwen35-0.8b-q4_0	128	sha256	385e35ba44725c79a84b3ed86297d71de16280492d40086cb04fa0ed819e14a0			pass
+validation	logits	qwen36-27b-q2_k	64	sha256	5790cafdade18db8b653eb9d0e0fae27e0e62f0614f37f101cc809e9a859e0e3			pass
+validation	backend_ops	quantized-mmvq	51	passed	51			pass
+validation	memcheck	q8_0-gdn	1	errors	0			pass
+validation	memcheck	q4_0-gdn	1	errors	0			pass
+validation	ctest	all	54	passed	54			pass

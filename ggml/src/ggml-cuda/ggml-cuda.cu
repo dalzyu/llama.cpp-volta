@@ -3041,11 +3041,60 @@ static bool ggml_cuda_can_fuse(const struct ggml_cgraph *                cgraph,
 static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, int i) {
 
     static bool disable_fusion = getenv("GGML_CUDA_DISABLE_FUSION") != nullptr && std::atoi(getenv("GGML_CUDA_DISABLE_FUSION"));
+    static const bool disable_gdn_proj_fusion = getenv("GGML_CUDA_DISABLE_GDN_PROJ_FUSION") != nullptr;
     if (disable_fusion) {
         return 0;
     }
 
     ggml_tensor * node = cgraph->nodes[i];
+
+    if (!disable_gdn_proj_fusion && node->op == GGML_OP_MUL_MAT &&
+            ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA && i + 8 < cgraph->n_nodes) {
+        const ggml_op ops[] = {
+            GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_ADD, GGML_OP_UNARY, GGML_OP_MUL,
+            GGML_OP_RESHAPE, GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_UNARY,
+        };
+        const int outputs[] = { i + 5, i + 8 };
+
+        ggml_tensor * alpha          = cgraph->nodes[i];
+        ggml_tensor * alpha_reshape  = cgraph->nodes[i + 1];
+        ggml_tensor * alpha_add      = cgraph->nodes[i + 2];
+        ggml_tensor * alpha_softplus = cgraph->nodes[i + 3];
+        ggml_tensor * gate           = cgraph->nodes[i + 4];
+        ggml_tensor * gate_reshape   = cgraph->nodes[i + 5];
+        ggml_tensor * beta           = cgraph->nodes[i + 6];
+        ggml_tensor * beta_reshape   = cgraph->nodes[i + 7];
+        ggml_tensor * beta_sigmoid   = cgraph->nodes[i + 8];
+
+        const bool add_lhs_alpha = alpha_add->src[0] == alpha_reshape;
+        const bool add_rhs_alpha = alpha_add->src[1] == alpha_reshape;
+        const bool mul_lhs_alpha = gate->src[0] == alpha_softplus;
+        const bool mul_rhs_alpha = gate->src[1] == alpha_softplus;
+        const ggml_tensor * alpha_bias  = add_lhs_alpha ? alpha_add->src[1] : alpha_add->src[0];
+        const ggml_tensor * alpha_scale = mul_lhs_alpha ? gate->src[1] : gate->src[0];
+
+        const auto tensors_overlap = [](const ggml_tensor * a, const ggml_tensor * b) {
+            const int64_t a_start = (int64_t) a->data;
+            const int64_t a_end   = a_start + ggml_backend_buft_get_alloc_size(a->buffer->buft, a);
+            const int64_t b_start = (int64_t) b->data;
+            const int64_t b_end   = b_start + ggml_backend_buft_get_alloc_size(b->buffer->buft, b);
+            return a_start < b_end && b_start < a_end;
+        };
+
+        if (ggml_can_fuse_subgraph(cgraph, i, 9, ops, outputs, 2) &&
+                (add_lhs_alpha != add_rhs_alpha) && (mul_lhs_alpha != mul_rhs_alpha) &&
+                alpha_reshape->src[0] == alpha && alpha_softplus->src[0] == alpha_add &&
+                gate_reshape->src[0] == gate && beta->src[1] == alpha->src[1] &&
+                beta_reshape->src[0] == beta && beta_sigmoid->src[0] == beta_reshape &&
+                ggml_get_unary_op(alpha_softplus) == GGML_UNARY_OP_SOFTPLUS &&
+                ggml_get_unary_op(beta_sigmoid) == GGML_UNARY_OP_SIGMOID &&
+                ggml_cuda_check_fusion_memory_ranges(cgraph, i, 9, outputs, 2) &&
+                !tensors_overlap(gate_reshape, beta_sigmoid) &&
+                ggml_cuda_mul_mat_vec_q_gdn(*cuda_ctx, alpha, beta, alpha_bias, alpha_scale,
+                                            gate_reshape, beta_sigmoid)) {
+            return 8;
+        }
+    }
 
     if (node->op == GGML_OP_L2_NORM && i + 2 < cgraph->n_nodes &&
             ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
