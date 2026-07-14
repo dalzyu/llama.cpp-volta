@@ -3728,6 +3728,7 @@ struct test_cont_sigmoid_mul : public test_case {
 // CONCAT(dim0) -> VIEW -> CPY fusion for a strided recurrent-state update.
 struct test_concat_cpy : public test_case {
     const int64_t rows;
+    const int64_t nseq;
 
     std::string op_desc(ggml_tensor * t) override {
         GGML_UNUSED(t);
@@ -3737,25 +3738,26 @@ struct test_concat_cpy : public test_case {
     bool run_whole_graph() override { return true; }
 
     std::string vars() override {
-        return VARS_TO_STR1(rows);
+        return VARS_TO_STR2(rows, nseq);
     }
 
-    test_concat_cpy(int64_t rows = 16) : rows(rows) {}
+    test_concat_cpy(int64_t rows = 16, int64_t nseq = 1) : rows(rows), nseq(nseq) {}
 
     ggml_tensor * build_graph(ggml_context * ctx) override {
-        ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 3, rows);
+        ggml_tensor * a = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 3, rows, nseq);
         ggml_set_name(a, "a");
 
-        ggml_tensor * b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, rows);
+        ggml_tensor * b = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 1, rows, nseq);
         ggml_set_name(b, "b");
 
         ggml_tensor * concat = ggml_concat(ctx, a, b, 0);
         ggml_set_name(concat, "concat");
 
-        ggml_tensor * view = ggml_view_2d(ctx, concat, 3, rows, concat->nb[1], sizeof(float));
+        ggml_tensor * view = ggml_view_3d(
+            ctx, concat, 3, rows, nseq, concat->nb[1], concat->nb[2], sizeof(float));
         ggml_set_name(view, "view");
 
-        ggml_tensor * dst = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 3*rows, 1);
+        ggml_tensor * dst = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 3*rows, nseq);
         ggml_set_name(dst, "dst");
 
         ggml_tensor * out = ggml_cpy(ctx, view, dst);
@@ -7941,8 +7943,10 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
         test_cases.emplace_back(new test_cont_sigmoid_mul(shape[0], shape[1], shape[2]));
     }
 
-    for (int64_t rows : { 1, 7, 128 }) {
-        test_cases.emplace_back(new test_concat_cpy(rows));
+    for (auto shape : { std::array<int64_t, 2>{   1, 1 },
+                        std::array<int64_t, 2>{   7, 2 },
+                        std::array<int64_t, 2>{ 128, 3 } }) {
+        test_cases.emplace_back(new test_concat_cpy(shape[0], shape[1]));
     }
 
     // SNAKE activation fusion: x + sin(a*x)^2 * inv_b

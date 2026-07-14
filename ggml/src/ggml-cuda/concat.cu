@@ -140,6 +140,28 @@ static __global__ void concat_cpy_dim0_f32(
 
 }
 
+static __global__ void concat_cpy_dim0_tail_f32(
+        const float * x, const float * y, float * dst, float * copy_dst,
+        const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t ne03,
+        const int64_t ne10, const int64_t ne11, const int64_t ne12, const int64_t ne13,
+        const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t ne3) {
+    ggml_cuda_pdl_lc();
+    ggml_cuda_pdl_sync();
+    const int64_t total = ne0*ne1*ne2*ne3;
+
+    for (int64_t i = (int64_t) blockIdx.x*blockDim.x + threadIdx.x;
+            i < total; i += (int64_t) blockDim.x*gridDim.x) {
+        const float value = concat_dim0_value(x, y, i,
+            ne00, ne01, ne02, ne03, ne10, ne11, ne12, ne13, ne0, ne1, ne2, ne3);
+        dst[i] = value;
+
+        const int64_t i0 = i % ne0;
+        if (i0 != 0) {
+            copy_dst[(i/ne0)*(ne0 - 1) + i0 - 1] = value;
+        }
+    }
+}
+
 // non-contiguous kernel (slow)
 template <typename T, int dim>
 static __global__ void __launch_bounds__(CUDA_CONCAT_BLOCK_SIZE)
@@ -313,6 +335,23 @@ void ggml_cuda_op_concat_cpy(ggml_backend_cuda_context & ctx,
 
     const ggml_cuda_kernel_launch_params launch_params =
         ggml_cuda_kernel_launch_params((dim3) blocks, CUDA_CONCAT_BLOCK_SIZE, 0, ctx.stream());
+
+    const bool tail_contiguous = copy_src->view_offs == sizeof(float) && copy_src->nb[0] == sizeof(float) &&
+        copy_src->ne[0] == concat_node->ne[0] - 1 &&
+        copy_src->ne[1] == concat_node->ne[1] && copy_src->ne[2] == concat_node->ne[2] &&
+        copy_src->ne[3] == concat_node->ne[3] &&
+        copy_src->nb[1] == concat_node->nb[1] && copy_src->nb[2] == concat_node->nb[2] &&
+        copy_src->nb[3] == concat_node->nb[3] && ggml_is_contiguous(copy_dst);
+    if (tail_contiguous) {
+        ggml_cuda_kernel_launch(concat_cpy_dim0_tail_f32, launch_params,
+            (const float *) src0->data, (const float *) src1->data, (float *) concat_node->data,
+            (float *) copy_dst->data,
+            src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
+            src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3],
+            concat_node->ne[0], concat_node->ne[1], concat_node->ne[2], concat_node->ne[3]);
+        return;
+    }
+
     ggml_cuda_kernel_launch(concat_cpy_dim0_f32, launch_params,
         (const float *) src0->data, (const float *) src1->data, (float *) concat_node->data,
         (float *) copy_dst->data,
