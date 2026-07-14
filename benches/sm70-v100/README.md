@@ -51,6 +51,9 @@ Volta Q4_0 half destination and packs two dequantization work units per
 tok/s (+5.58%).
 The remaining SSM, concat, and fused K-quant launch-bound candidates are
 recorded as rejected in experiment [035](experiments/035-volta-remaining-kernels/).
+Graph chunking, separate gate precomputation, multi-column warps, shared q/k,
+and recurrent-loop unrolling are recorded as rejected in experiment
+[037](experiments/037-volta-gdn-redesigns/).
 
 ## Retained optimizations
 
@@ -70,6 +73,11 @@ Gated DeltaNet gate once per warp and broadcasts it. At a fixed 1200 MHz SM
 clock this improves Qwen 3.5 pp512 by 0.24% to 0.32% and reduces the GDN kernel
 average by 3.67%.
 
+Experiment [038](experiments/038-volta-gdn-vector-rows/) assigns four adjacent
+rows to each lane for aligned 128-wide scalar GDN heads on Volta. It emits
+128-bit state, q, and k accesses while leaving KDA and other architectures on
+the original kernel. The GDN kernel average falls another 6.01%.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |
@@ -82,8 +90,11 @@ average by 3.67%.
 | Qwen 3.5 Q4_0 p512 dequantization | 14011.421 | 14793.329 | +5.58% |
 | Qwen 3.5 Q8_0 float get_rows tg128 | 288.953 | 291.321 | +0.82% |
 | Qwen 3.6 float get_rows tg128 | 30.535 | 30.898 | +1.19% |
+| Qwen 3.5 Q4_0 GDN vector rows pp512 | 14226.68 | 14428.77 | +1.42% |
+| Qwen 3.5 Q8_0 GDN vector rows pp512 | 14557.47 | 14761.59 | +1.40% |
 
-Peak VRAM is unchanged. Eight-chunk perplexity remains
-exactly equal to baseline across all four models. Final focused backend coverage
-passes 20/20 K-quant, 14/14 Q4_0, and 16/16 Q8_0 cases. Final HEAD measurements
-and commands are under `final/`.
+Peak VRAM is unchanged. Earlier retained changes preserve eight-chunk
+perplexity exactly. The vector-row reduction slightly lowers Qwen 3.5 PPL from
+21.8601 to 21.8595 for Q4_0 and from 18.3634 to 18.3631 for Q8_0. Final focused
+backend coverage passes 20/20 K-quant, 14/14 Q4_0, and 16/16 Q8_0 cases. Final
+HEAD measurements and commands are under `final/`.

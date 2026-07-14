@@ -1,0 +1,11 @@
+model	configuration	repetitions	test	tok_s	stddev_tok_s
+qwen35-0.8b-q4_0	candidate-a	100	pp512	14428.72	22.15
+qwen35-0.8b-q8_0	candidate-a	100	pp512	14771.87	15.29
+qwen35-0.8b-q4_0	control	100	pp512	14226.68	43.06
+qwen35-0.8b-q8_0	control	100	pp512	14557.47	46.29
+qwen35-0.8b-q4_0	candidate-b	100	pp512	14428.82	30.07
+qwen35-0.8b-q8_0	candidate-b	100	pp512	14751.31	48.39
+qwen35-0.8b-q4_0	candidate	30	tg128	264.88	0.09
+qwen35-0.8b-q8_0	candidate	30	tg128	246.89	0.08
+qwen35-0.8b-q4_0	control	30	tg128	263.56	0.10
+qwen35-0.8b-q8_0	control	30	tg128	246.85	0.10

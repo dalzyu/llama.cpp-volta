@@ -1,0 +1,10 @@
+variant	model	repetitions	pp512_tok_s	stddev_tok_s	change_pct
+graph-chunking	qwen35-0.8b-q4_0	100	9474.16	20.56	-33.43
+graph-chunking	qwen35-0.8b-q8_0	100	9700.43	9.09	-33.54
+gate-precompute	qwen35-0.8b-q4_0	100	14230.07	38.29	-0.01
+gate-precompute	qwen35-0.8b-q8_0	100	14577.93	40.06	-0.12
+two-columns-per-warp	qwen35-0.8b-q4_0	100	14165.59	18.43	-0.46
+two-columns-per-warp	qwen35-0.8b-q8_0	100	14506.71	12.38	-0.60
+shared-qk-double-buffer	qwen35-0.8b-q4_0	100	13879.05	13.47	-2.47
+two-token-unroll	qwen35-0.8b-q4_0	100	14195.07	61.44	-0.25
+two-token-unroll	qwen35-0.8b-q8_0	100	14460.39	60.81	-0.92
