@@ -20,6 +20,7 @@ retained-build revision measured 30.535 tok/s in its final sample. The Q4_0
 half2/two-work-unit change is recorded in experiment 033. Controlled generation
 comparisons are recorded in experiments 016, 018, 019, 029, 030, 031, and 032.
 The float get_rows change and its paired checks are recorded in experiment 034.
+The rejected remaining-kernel sweep is recorded in experiment 035.
 The changes do not alter memory allocation.
 
 Focused final backend tests pass 47/47 GET_ROWS, 20/20 K-quant, 14/14 Q4_0,

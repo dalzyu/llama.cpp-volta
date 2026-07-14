@@ -1,0 +1,7 @@
+candidate	model	control	candidate	change
+ssm_split64	qwen35-0.8b-q4_0 pp512	14575.4	14241.5	-2.29%
+ssm_split64	qwen35-0.8b-q8_0 pp512	14759.8	14647.0	-0.76%
+concat_block128	qwen35-0.8b-q4_0 pp512	14653.6	14721.6	+0.46%
+concat_block128	qwen35-0.8b-q8_0 pp512	14985.1	14912.2	-0.49%
+concat_block128	gemma4-12b-q4_0 pp512	1679.9	1679.5	-0.02%
+q4_q6_fused_bound20	qwen36-27b-q2_k tg128	30.995	31.034	+0.13%

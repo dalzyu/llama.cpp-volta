@@ -49,6 +49,8 @@ Experiment [033](experiments/033-volta-q4_0-half2-dequant/) vectorizes the
 Volta Q4_0 half destination and packs two dequantization work units per
 64-thread block; the final Qwen 3.5 p512 comparison is 14011.421 to 14793.329
 tok/s (+5.58%).
+The remaining SSM, concat, and fused K-quant launch-bound candidates are
+recorded as rejected in experiment [035](experiments/035-volta-remaining-kernels/).
 
 ## Retained optimizations
 
