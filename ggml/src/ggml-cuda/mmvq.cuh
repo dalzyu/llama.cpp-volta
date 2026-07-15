@@ -37,7 +37,7 @@ bool ggml_cuda_mul_mat_vec_q_gdn_conv(ggml_backend_cuda_context & ctx,
     const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
     ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
     ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
-    ggml_tensor * dst_gate, ggml_tensor * dst_beta);
+    ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize);
 
 void ggml_cuda_op_mul_mat_vec_q(
     ggml_backend_cuda_context & ctx,

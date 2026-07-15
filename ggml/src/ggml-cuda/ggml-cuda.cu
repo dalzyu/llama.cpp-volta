@@ -4256,6 +4256,50 @@ static int ggml_cuda_find_groupable_gdn_conv_q8(const ggml_cgraph * cgraph, int 
     return conv_idx;
 }
 
+static bool ggml_cuda_can_defer_gdn_finalize(
+        const ggml_cgraph * cgraph, int i, int conv_idx, int alpha_idx) {
+    const ggml_tensor * scratch = cgraph->nodes[i + 3];
+    const ggml_tensor * q = cgraph->nodes[conv_idx + 3];
+    const ggml_tensor * k = cgraph->nodes[conv_idx + 5];
+    const ggml_tensor * v = cgraph->nodes[conv_idx + 6];
+    const ggml_tensor * gate = cgraph->nodes[alpha_idx + 5];
+    const ggml_tensor * beta = cgraph->nodes[alpha_idx + 8];
+
+    if (scratch->type != GGML_TYPE_F32 || q->type != GGML_TYPE_F32 ||
+            k->type != GGML_TYPE_F32 || v->type != GGML_TYPE_F32 ||
+            q->ne[0] != 128 || q->ne[1] != 16 || q->ne[2] != 1 || q->ne[3] != 1 ||
+            !ggml_are_same_shape(q, k) || !ggml_are_same_shape(q, v) ||
+            ggml_nelements(scratch) < 3*ggml_nelements(q) ||
+            !ggml_is_contiguous(scratch) || !ggml_is_contiguous(q) ||
+            !ggml_is_contiguous(k) || !ggml_is_contiguous(v)) {
+        return false;
+    }
+
+    int gdn_idx = -1;
+    for (int j = std::max(conv_idx + 7, alpha_idx + 9); j < cgraph->n_nodes; ++j) {
+        const ggml_tensor * node = cgraph->nodes[j];
+        if (node->op == GGML_OP_GATED_DELTA_NET && node->src[0] == q && node->src[1] == k &&
+                node->src[2] == v && node->src[3] == gate && node->src[4] == beta) {
+            gdn_idx = j;
+            break;
+        }
+    }
+    if (gdn_idx < 0 || !ggml_cuda_can_precompute(cgraph, scratch, conv_idx + 7, gdn_idx)) {
+        return false;
+    }
+
+    const ggml_tensor * gdn = cgraph->nodes[gdn_idx];
+    for (int j = 0; j < cgraph->n_nodes; ++j) {
+        const ggml_tensor * node = cgraph->nodes[j];
+        for (int s = 0; s < GGML_MAX_SRC; ++s) {
+            if ((node->src[s] == q || node->src[s] == k || node->src[s] == v) && node != gdn) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static bool ggml_cuda_can_group_qkv(const ggml_cgraph * cgraph, int i) {
     if (i + 7 >= cgraph->n_nodes) {
         return false;
@@ -4318,6 +4362,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     bool graph_evaluated_or_captured = false;
 
     cuda_ctx->q8_1_cache_reset();
+    cuda_ctx->gdn_raw_input_reset();
 
     static const bool disable_grouped_qkv = getenv("GGML_CUDA_DISABLE_GROUPED_QKV") != nullptr;
     static const bool disable_grouped_gdn_q8 = getenv("GGML_CUDA_DISABLE_GROUPED_GDN_Q8") != nullptr;
@@ -4499,10 +4544,13 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                             ggml_tensor * q_norm = cgraph->nodes[conv_idx + 3];
                             ggml_tensor * k_norm = cgraph->nodes[conv_idx + 5];
                             ggml_tensor * v_conv = cgraph->nodes[conv_idx + 6];
+                            const bool defer_finalize =
+                                ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA &&
+                                ggml_cuda_can_defer_gdn_finalize(cgraph, i, conv_idx, alpha_idx);
                             if (ggml_cuda_mul_mat_vec_q_gdn_conv(*cuda_ctx, node, alpha, beta,
                                     alpha_bias, alpha_scale, concat->src[0], conv->src[1],
                                     concat, conv_state_update, q_norm, k_norm, v_conv,
-                                    gate_reshape, beta_sigmoid)) {
+                                    gate_reshape, beta_sigmoid, defer_finalize)) {
                                 for (int j = 1; j <= 6; ++j) {
                                     precomputed_nodes.push_back(cgraph->nodes[i + j]);
                                 }
@@ -4599,6 +4647,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     }
 
     cuda_ctx->q8_1_cache_reset();
+    cuda_ctx->gdn_raw_input_reset();
 }
 
 #ifdef USE_CUDA_GRAPH

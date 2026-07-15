@@ -1,0 +1,4 @@
+variant	arch	block_x	block_y	grid_x	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+materialized_gdn_core	sm70	32	4	16	48	0	0	0	560
+raw_gdn_core	sm70	32	4	16	55	8	0	0	560
+qkv_finalizer	sm70	32	1	48	32	0	0	0	396

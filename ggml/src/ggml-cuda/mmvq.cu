@@ -2220,7 +2220,7 @@ bool ggml_cuda_mul_mat_vec_q_gdn_conv(
         const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
         ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
         ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
-        ggml_tensor * dst_gate, ggml_tensor * dst_beta) {
+        ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize) {
     const ggml_tensor * src_qkv   = qkv->src[0];
     const ggml_tensor * src_alpha = alpha->src[0];
     const ggml_tensor * src_beta  = beta->src[0];
@@ -2318,6 +2318,11 @@ bool ggml_cuda_mul_mat_vec_q_gdn_conv(
         (float *) dst_gate->data, (float *) dst_beta->data,
         (uint32_t) src_qkv->ne[0], stride_row_qkv, stride_row_alpha, stride_row_beta,
         stride_row_state, stride_row_conv, nblocks_qkv, nblocks_alpha);
+
+    if (defer_finalize) {
+        ctx.gdn_raw_input_set(q_norm, (const float *) conv_scratch->data, eps_q);
+        return true;
+    }
 
     constexpr int finalize_block_size = WARP_SIZE;
     const dim3 finalize_blocks(3*q_norm->ne[1], 1, 1);
