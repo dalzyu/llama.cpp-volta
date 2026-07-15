@@ -2533,9 +2533,45 @@ static bool ggml_cuda_should_fuse_rope_set_rows(const ggml_tensor * rope,
         return false;
     }
 
-    // Only norm/neox shaders have the fusion code
     const int mode = ((const int32_t *) rope->op_params)[2];
-    if (mode != GGML_ROPE_TYPE_NORMAL && mode != GGML_ROPE_TYPE_NEOX) {
+    if (mode != GGML_ROPE_TYPE_NORMAL && mode != GGML_ROPE_TYPE_NEOX &&
+            mode != GGML_ROPE_TYPE_MROPE && mode != GGML_ROPE_TYPE_IMROPE) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool ggml_cuda_should_fuse_mrope_kv_set_rows(
+        const ggml_tensor * rope,
+        const ggml_tensor * k_view,
+        const ggml_tensor * k_set_rows,
+        const ggml_tensor * v_view,
+        const ggml_tensor * v_set_rows) {
+    if (!ggml_cuda_should_fuse_rope_set_rows(rope, k_view, k_set_rows) ||
+            k_view->src[0] != rope || k_set_rows->src[0] != k_view ||
+            v_view->op != GGML_OP_VIEW || v_set_rows->op != GGML_OP_SET_ROWS ||
+            v_set_rows->src[0] != v_view) {
+        return false;
+    }
+
+    const int mode = ((const int32_t *) rope->op_params)[2];
+    if (mode != GGML_ROPE_TYPE_MROPE && mode != GGML_ROPE_TYPE_IMROPE) {
+        return false;
+    }
+
+    if (rope->type != GGML_TYPE_F32 || rope->src[0]->type != GGML_TYPE_F32 ||
+            k_set_rows->type != GGML_TYPE_F16 || v_view->type != GGML_TYPE_F32 ||
+            v_set_rows->type != GGML_TYPE_F16 || v_set_rows->src[1]->type != GGML_TYPE_I64 ||
+            !ggml_is_contiguous(v_view) || rope->ne[0] % 2 != 0 ||
+            ggml_nelements(v_view) != ggml_nelements(rope) ||
+            rope->ne[3] != 1 || v_view->nb[0] != sizeof(float) ||
+            v_view->ne[0] != rope->ne[0] * rope->ne[1] || v_view->ne[1] != rope->ne[2] ||
+            v_view->ne[2] != 1 || v_view->ne[3] != 1 ||
+            v_set_rows->ne[0] != v_view->ne[0] || v_set_rows->ne[2] != 1 || v_set_rows->ne[3] != 1 ||
+            k_set_rows->src[1]->ne[0] != rope->ne[2] ||
+            k_set_rows->src[1]->ne[0] != v_set_rows->src[1]->ne[0] ||
+            k_set_rows->data == v_set_rows->data) {
         return false;
     }
 
@@ -3325,13 +3361,34 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         }
     }
 
-    //RoPE + view + set-rows
-    if (ggml_cuda_can_fuse(cgraph, i, { GGML_OP_ROPE, GGML_OP_VIEW, GGML_OP_SET_ROWS }, {})) {
-        ggml_tensor * rope     = cgraph->nodes[i];
-        ggml_tensor * set_rows = cgraph->nodes[i + 2];
+    // RoPE + K/V set-rows
+    if (ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA &&
+            ggml_can_fuse_subgraph(cgraph, i,
+                { GGML_OP_ROPE, GGML_OP_VIEW, GGML_OP_SET_ROWS, GGML_OP_VIEW, GGML_OP_SET_ROWS },
+                { i + 2, i + 3, i + 4 })) {
+        ggml_tensor * rope       = cgraph->nodes[i];
+        ggml_tensor * k_view     = cgraph->nodes[i + 1];
+        ggml_tensor * k_set_rows = cgraph->nodes[i + 2];
+        ggml_tensor * v_view     = cgraph->nodes[i + 3];
+        ggml_tensor * v_set_rows = cgraph->nodes[i + 4];
 
-        ggml_cuda_op_rope_fused(*cuda_ctx, rope, set_rows);
-        return 2;
+        if (ggml_cuda_should_fuse_mrope_kv_set_rows(rope, k_view, k_set_rows, v_view, v_set_rows)) {
+            ggml_cuda_op_rope_fused(*cuda_ctx, rope, k_set_rows, v_set_rows);
+            return 4;
+        }
+    }
+
+    // RoPE + view + set-rows
+    if (node->op == GGML_OP_ROPE) {
+        const int mode = ((const int32_t *) node->op_params)[2];
+        const bool mrope = mode == GGML_ROPE_TYPE_MROPE || mode == GGML_ROPE_TYPE_IMROPE;
+        if ((!mrope || ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) &&
+                ggml_cuda_can_fuse(cgraph, i, { GGML_OP_ROPE, GGML_OP_VIEW, GGML_OP_SET_ROWS }, {})) {
+            ggml_tensor * set_rows = cgraph->nodes[i + 2];
+
+            ggml_cuda_op_rope_fused(*cuda_ctx, node, set_rows);
+            return 2;
+        }
     }
 
     // Snake activation: y = x + sin(a*x)^2 * inv_b
