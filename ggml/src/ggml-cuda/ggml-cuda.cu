@@ -4544,16 +4544,85 @@ static void ggml_cuda_prepare_gdn_raw_conv_states(
     }
 }
 
+static void ggml_cuda_prepare_fattn_gate_q8(
+        ggml_backend_cuda_context & ctx, const ggml_cgraph * cgraph) {
+    if (ctx.curr_stream_no != 0) {
+        return;
+    }
+
+    const ggml_op ops[] = {
+        GGML_OP_FLASH_ATTN_EXT, GGML_OP_RESHAPE, GGML_OP_VIEW,
+        GGML_OP_CONT, GGML_OP_UNARY, GGML_OP_MUL,
+    };
+    for (int i = 0; i + 6 < cgraph->n_nodes; ++i) {
+        const int subgraph_outputs[] = { i + 2, i + 5 };
+        if (!ggml_can_fuse_subgraph(cgraph, i, 6, ops, subgraph_outputs, 2)) {
+            continue;
+        }
+
+        const ggml_tensor * fattn = cgraph->nodes[i];
+        const ggml_tensor * attention = cgraph->nodes[i + 1];
+        const ggml_tensor * gate_view = cgraph->nodes[i + 2];
+        const ggml_tensor * gate_cont = cgraph->nodes[i + 3];
+        const ggml_tensor * gate_sigmoid = cgraph->nodes[i + 4];
+        const ggml_tensor * gated = cgraph->nodes[i + 5];
+        const ggml_tensor * output = cgraph->nodes[i + 6];
+        const ggml_tensor * q = fattn->src[0];
+        const ggml_tensor * k = fattn->src[1];
+        const ggml_tensor * v = fattn->src[2];
+        const bool attention_lhs = gated->src[0] == attention && gated->src[1] == gate_sigmoid;
+        const bool attention_rhs = gated->src[1] == attention && gated->src[0] == gate_sigmoid;
+
+        if (attention->src[0] != fattn || gate_cont->src[0] != gate_view ||
+                gate_sigmoid->src[0] != gate_cont ||
+                attention_lhs == attention_rhs ||
+                ggml_get_unary_op(gate_sigmoid) != GGML_UNARY_OP_SIGMOID ||
+                output->op != GGML_OP_MUL_MAT || output->src[1] != gated ||
+                ggml_node_get_use_count(cgraph, i + 5) != 1 ||
+                (gated->flags & GGML_TENSOR_FLAG_OUTPUT) != 0 ||
+                !ggml_cuda_should_fuse_mul_mat_vec_q(output) ||
+                q == nullptr || k == nullptr || v == nullptr ||
+                fattn->type != GGML_TYPE_F32 || attention->type != GGML_TYPE_F32 ||
+                gate_view->type != GGML_TYPE_F32 || gate_cont->type != GGML_TYPE_F32 ||
+                gate_sigmoid->type != GGML_TYPE_F32 || gated->type != GGML_TYPE_F32 ||
+                q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_F16 || v->type != GGML_TYPE_F16 ||
+                q->ne[0] != 256 || q->ne[1] != 1 || q->ne[2] != 8 || q->ne[3] != 1 ||
+                k->ne[0] != 256 || k->ne[1] != 256 || k->ne[2] != 2 || k->ne[3] != 1 ||
+                !ggml_are_same_shape(k, v) ||
+                ggml_nelements(fattn) != 2048 || ggml_nelements(attention) != 2048 ||
+                gate_view->ne[0] != 256 || gate_view->ne[1] != 8 ||
+                gate_view->ne[2] != 1 || gate_view->ne[3] != 1 ||
+                ggml_nelements(gate_cont) != 2048 ||
+                !ggml_are_same_shape(gate_cont, gate_sigmoid) ||
+                ggml_nelements(gated) != 2048 ||
+                gate_view->nb[0] != sizeof(float) || gate_view->nb[1] % sizeof(float) != 0 ||
+                !ggml_is_contiguous(attention) || !ggml_is_contiguous_1(gate_view) ||
+                !ggml_is_contiguous(gate_cont) || !ggml_is_contiguous(gated)) {
+            continue;
+        }
+
+        constexpr size_t q8_size = 2048*sizeof(block_q8_1)/QK8_1;
+        // Keep persistent cache allocations below the flash-attention temporaries in the pool.
+        if (ctx.q8_1_cache_get(gated, q8_size) == nullptr) {
+            ctx.q8_1_cache_alloc(gated, q8_size);
+        }
+        ctx.fattn_gate_q8_set(fattn, (const float *) gate_view->data, gated,
+            gate_view->ne[0], gate_view->nb[1] / sizeof(float));
+    }
+}
+
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, const void * graph_key) {
     bool graph_evaluated_or_captured = false;
 
     cuda_ctx->q8_1_cache_reset();
     cuda_ctx->gdn_raw_input_reset();
     cuda_ctx->gdn_raw_state_reset();
+    cuda_ctx->fattn_gate_q8_reset();
 
     static const bool disable_grouped_qkv = getenv("GGML_CUDA_DISABLE_GROUPED_QKV") != nullptr;
     static const bool disable_grouped_gdn_q8 = getenv("GGML_CUDA_DISABLE_GROUPED_GDN_Q8") != nullptr;
     static const bool disable_gdn_conv_fusion = getenv("GGML_CUDA_DISABLE_GDN_CONV_FUSION") != nullptr;
+    static const bool disable_q8_1_cache = getenv("GGML_CUDA_DISABLE_Q8_1_CACHE") != nullptr;
     std::vector<const ggml_tensor *> precomputed_nodes;
     std::vector<std::pair<const ggml_tensor *, ggml_cuda_gdn_raw_conv_state>> gdn_raw_conv_states;
 
@@ -4658,6 +4727,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 if (!disable_grouped_gdn_q8 && !disable_gdn_conv_fusion) {
                     ggml_cuda_prepare_gdn_raw_conv_states(*cuda_ctx, cgraph, precomputed_nodes,
                         gdn_raw_conv_states, !disable_grouped_qkv);
+                }
+                if (!disable_q8_1_cache) {
+                    ggml_cuda_prepare_fattn_gate_q8(*cuda_ctx, cgraph);
                 }
             }
 
@@ -4807,6 +4879,15 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
                 GGML_ASSERT(ok);
 
+                const ggml_backend_cuda_context::fattn_gate_q8 * fattn_gate =
+                    cuda_ctx->fattn_gate_q8_get(node);
+                if (fattn_gate != nullptr && fattn_gate->used) {
+                    // The combine kernel emitted the Q8_1 input consumed by the projection.
+                    precomputed_nodes.push_back(cgraph->nodes[i + 3]);
+                    precomputed_nodes.push_back(cgraph->nodes[i + 4]);
+                    precomputed_nodes.push_back(cgraph->nodes[i + 5]);
+                }
+
                 if (!is_concurrent_event_active) {
                     try_launch_concurrent_event(node);
                }
@@ -4852,6 +4933,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     cuda_ctx->q8_1_cache_reset();
     cuda_ctx->gdn_raw_input_reset();
     cuda_ctx->gdn_raw_state_reset();
+    cuda_ctx->fattn_gate_q8_reset();
 }
 
 #ifdef USE_CUDA_GRAPH

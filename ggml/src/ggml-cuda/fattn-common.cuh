@@ -2,6 +2,7 @@
 
 #include "common.cuh"
 #include "convert.cuh"
+#include "unary.cuh"
 #include "vecdotq.cuh"
 
 #include <cstdint>
@@ -969,6 +970,76 @@ static __global__ void flash_attn_combine_results(
     dst[tid] = VKQ_numerator / VKQ_denominator;
 }
 
+template<int D> // D == head size
+__launch_bounds__(D, 1)
+static __global__ void flash_attn_combine_results_gated_q8(
+        const float  * VKQ_parts_ptr,
+        const float2 * VKQ_meta_ptr,
+        const float  * gate_ptr,
+        block_q8_1 * q8_ptr,
+        const int parallel_blocks,
+        const int64_t gate_width,
+        const int64_t gate_stride) {
+    ggml_cuda_pdl_lc();
+    const float  * GGML_CUDA_RESTRICT VKQ_parts = VKQ_parts_ptr;
+    const float2 * GGML_CUDA_RESTRICT VKQ_meta  = VKQ_meta_ptr;
+    const float  * GGML_CUDA_RESTRICT gate      = gate_ptr;
+    block_q8_1   * GGML_CUDA_RESTRICT q8        = q8_ptr;
+
+    const int ne01 = gridDim.x;
+    const int ne02 = gridDim.y;
+
+    const int col      = blockIdx.x;
+    const int head     = blockIdx.y;
+    const int sequence = blockIdx.z;
+
+    const int j_dst_unrolled = (sequence*ne01 + col)*ne02 + head;
+
+    VKQ_parts += j_dst_unrolled * parallel_blocks*D;
+    VKQ_meta  += j_dst_unrolled * parallel_blocks;
+
+    const int tid = threadIdx.x;
+    __builtin_assume(tid < D);
+
+    extern __shared__ float2 meta[];
+    ggml_cuda_pdl_sync();
+    for (int i = tid; i < 2*parallel_blocks; i += D) {
+        ((float *) meta)[i] = ((const float *) VKQ_meta)[i];
+    }
+
+    __syncthreads();
+
+    float kqmax = meta[0].x;
+    for (int l = 1; l < parallel_blocks; ++l) {
+        kqmax = max(kqmax, meta[l].x);
+    }
+
+    float VKQ_numerator   = 0.0f;
+    float VKQ_denominator = 0.0f;
+    for (int l = 0; l < parallel_blocks; ++l) {
+        const float KQ_max_scale = expf(meta[l].x - kqmax);
+
+        VKQ_numerator   += KQ_max_scale * VKQ_parts[l*D + tid];
+        VKQ_denominator += KQ_max_scale * meta[l].y;
+    }
+
+    const int64_t i = int64_t(j_dst_unrolled)*D + tid;
+    const int64_t gate_idx = (i/gate_width)*gate_stride + i % gate_width;
+    const float value = ggml_cuda_op_sigmoid_single(gate[gate_idx]) * (VKQ_numerator / VKQ_denominator);
+
+    const float amax = warp_reduce_max<QK8_1>(fabsf(value));
+    const float sum = warp_reduce_sum<QK8_1>(value);
+    const float d = amax/127.0f;
+    const int8_t quant = amax == 0.0f ? 0 : roundf(value/d);
+    const int ib = i/QK8_1;
+    const int iqs = tid % QK8_1;
+
+    q8[ib].qs[iqs] = quant;
+    if (iqs == 0) {
+        q8[ib].ds = make_half2(d, sum);
+    }
+}
+
 template <int DV, int ncols1, int ncols2>
 void launch_fattn(
     ggml_backend_cuda_context & ctx, ggml_tensor * dst, fattn_kernel_t fattn_kernel, const int nwarps, const size_t nbytes_shared,
@@ -1267,8 +1338,29 @@ void launch_fattn(
         const size_t nbytes_shared_combine = parallel_blocks*sizeof(float2);
 
         const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(blocks_num_combine, block_dim_combine, nbytes_shared_combine, main_stream);
-        ggml_cuda_kernel_launch(flash_attn_combine_results<DV>, launch_params,
-            dst_tmp.ptr, dst_tmp_meta.ptr, (float *) KQV->data, parallel_blocks);
+        bool gated_q8 = false;
+        if constexpr (DV == 256 && ncols1 == 1 && ncols2 == 4) {
+            ggml_backend_cuda_context::fattn_gate_q8 * epilogue = ctx.fattn_gate_q8_get(KQV);
+            if (epilogue != nullptr && cc == GGML_CUDA_CC_VOLTA && !stream_k && ctx.curr_stream_no == 0 &&
+                    Q->ne[0] == 256 && Q->ne[1] == 1 && Q->ne[2] == 8 && Q->ne[3] == 1 &&
+                    K->ne[0] == 256 && K->ne[1] == 256 && K->ne[2] == 2 && K->ne[3] == 1 &&
+                    epilogue->gate != nullptr && epilogue->q8_dst != nullptr &&
+                    epilogue->gate_width == 256 && epilogue->gate_stride >= 256) {
+                constexpr size_t q8_size = 2048*sizeof(block_q8_1)/QK8_1;
+                char * q8 = ctx.q8_1_cache_get(epilogue->q8_dst, q8_size);
+                if (q8 != nullptr) {
+                    ggml_cuda_kernel_launch(flash_attn_combine_results_gated_q8<DV>, launch_params,
+                        dst_tmp.ptr, dst_tmp_meta.ptr, epilogue->gate, (block_q8_1 *) q8,
+                        parallel_blocks, epilogue->gate_width, epilogue->gate_stride);
+                    epilogue->used = true;
+                    gated_q8 = true;
+                }
+            }
+        }
+        if (!gated_q8) {
+            ggml_cuda_kernel_launch(flash_attn_combine_results<DV>, launch_params,
+                dst_tmp.ptr, dst_tmp_meta.ptr, (float *) KQV->data, parallel_blocks);
+        }
     }
     CUDA_CHECK(cudaGetLastError());
 }

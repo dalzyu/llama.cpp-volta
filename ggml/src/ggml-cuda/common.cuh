@@ -1502,6 +1502,15 @@ struct ggml_backend_cuda_context {
     };
     std::vector<std::pair<const ggml_tensor *, gdn_raw_state>> gdn_raw_states;
 
+    struct fattn_gate_q8 {
+        const float * gate;
+        const ggml_tensor * q8_dst;
+        int64_t gate_width;
+        int64_t gate_stride;
+        bool used;
+    };
+    std::vector<std::pair<const ggml_tensor *, fattn_gate_q8>> fattn_gate_q8_epilogues;
+
     static std::unique_ptr<ggml_cuda_pool> new_pool_for_device(int device, int stream_no);
 
     ggml_cuda_pool & pool(int device) {
@@ -1571,6 +1580,27 @@ struct ggml_backend_cuda_context {
 
     void gdn_raw_state_reset() {
         gdn_raw_states.clear();
+    }
+
+    void fattn_gate_q8_set(
+            const ggml_tensor * fattn, const float * gate, const ggml_tensor * q8_dst,
+            int64_t gate_width, int64_t gate_stride) {
+        fattn_gate_q8_epilogues.emplace_back(fattn, fattn_gate_q8 {
+            gate, q8_dst, gate_width, gate_stride, false,
+        });
+    }
+
+    fattn_gate_q8 * fattn_gate_q8_get(const ggml_tensor * fattn) {
+        for (auto & entry : fattn_gate_q8_epilogues) {
+            if (entry.first == fattn) {
+                return &entry.second;
+            }
+        }
+        return nullptr;
+    }
+
+    void fattn_gate_q8_reset() {
+        fattn_gate_q8_epilogues.clear();
     }
 };
 
