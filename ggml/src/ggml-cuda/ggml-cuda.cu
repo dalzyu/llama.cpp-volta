@@ -4091,6 +4091,17 @@ static bool ggml_cuda_can_precompute(
     return true;
 }
 
+static bool ggml_cuda_can_defer_read(
+        const ggml_cgraph * cgraph, const ggml_tensor * source, int begin, int end) {
+    for (int i = begin; i < end; ++i) {
+        const ggml_tensor * node = cgraph->nodes[i];
+        if (!ggml_cuda_is_view_or_noop(node) && ggml_cuda_tensors_overlap(source, node)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static int ggml_cuda_find_groupable_gdn_q8(const ggml_cgraph * cgraph, int i) {
     if (i + 12 >= cgraph->n_nodes ||
             cgraph->nodes[i    ]->op != GGML_OP_MUL_MAT ||
@@ -4300,6 +4311,72 @@ static bool ggml_cuda_can_defer_gdn_finalize(
     return true;
 }
 
+static void ggml_cuda_prepare_gdn_raw_states(
+        ggml_backend_cuda_context & ctx, const ggml_cgraph * cgraph,
+        std::vector<const ggml_tensor *> & precomputed_nodes) {
+    for (int gdn_idx = 0; gdn_idx < cgraph->n_nodes; ++gdn_idx) {
+        const ggml_tensor * gdn = cgraph->nodes[gdn_idx];
+        if (gdn->op != GGML_OP_GATED_DELTA_NET || ggml_get_op_params_i32(gdn, 0) != 1) {
+            continue;
+        }
+
+        const ggml_tensor * q = gdn->src[0];
+        const ggml_tensor * k = gdn->src[1];
+        const ggml_tensor * v = gdn->src[2];
+        const ggml_tensor * gate = gdn->src[3];
+        const ggml_tensor * beta = gdn->src[4];
+        const ggml_tensor * state = gdn->src[5];
+        if (q == nullptr || k == nullptr || v == nullptr || gate == nullptr || beta == nullptr ||
+                state == nullptr || state->op != GGML_OP_RESHAPE || state->src[0] == nullptr ||
+                state->src[0]->op != GGML_OP_GET_ROWS) {
+            continue;
+        }
+
+        const ggml_tensor * rows = state->src[0];
+        const ggml_tensor * source = rows->src[0];
+        const ggml_tensor * ids = rows->src[1];
+        constexpr int64_t state_size = 128*128*16;
+        if (source == nullptr || ids == nullptr || q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_F32 ||
+                v->type != GGML_TYPE_F32 || gate->type != GGML_TYPE_F32 || beta->type != GGML_TYPE_F32 ||
+                state->type != GGML_TYPE_F32 || rows->type != GGML_TYPE_F32 || source->type != GGML_TYPE_F32 ||
+                ids->type != GGML_TYPE_I32 ||
+                q->ne[0] != 128 || q->ne[1] != 16 || q->ne[2] != 1 || q->ne[3] != 1 ||
+                !ggml_are_same_shape(q, k) || !ggml_are_same_shape(q, v) ||
+                gate->ne[0] != 1 || gate->ne[1] != 16 || gate->ne[2] != 1 || gate->ne[3] != 1 ||
+                !ggml_are_same_shape(gate, beta) ||
+                state->ne[0] != 128 || state->ne[1] != 128 || state->ne[2] != 16 || state->ne[3] != 1 ||
+                rows->ne[0] != state_size || rows->ne[1] != 1 || rows->ne[2] != 1 || rows->ne[3] != 1 ||
+                source->ne[0] != state_size || ggml_nelements(ids) != 1 ||
+                source->nb[0] != sizeof(float) || source->nb[1] % sizeof(float) != 0 ||
+                !ggml_is_contiguous_rows(source) || !ggml_is_contiguous(rows) || !ggml_is_contiguous(state)) {
+            continue;
+        }
+
+        int rows_idx = -1;
+        bool sole_consumers = true;
+        for (int j = 0; j < cgraph->n_nodes && sole_consumers; ++j) {
+            const ggml_tensor * node = cgraph->nodes[j];
+            if (node == rows) {
+                rows_idx = j;
+            }
+            for (int s = 0; s < GGML_MAX_SRC; ++s) {
+                if ((node->src[s] == rows && node != state) || (node->src[s] == state && node != gdn)) {
+                    sole_consumers = false;
+                    break;
+                }
+            }
+        }
+        if (!sole_consumers || rows_idx < 0 || rows_idx >= gdn_idx ||
+                !ggml_cuda_can_defer_read(cgraph, source, rows_idx + 1, gdn_idx)) {
+            continue;
+        }
+
+        ctx.gdn_raw_state_set(state, (const float *) source->data,
+            (const int32_t *) ids->data, source->nb[1] / sizeof(float));
+        precomputed_nodes.push_back(rows);
+    }
+}
+
 static bool ggml_cuda_can_group_qkv(const ggml_cgraph * cgraph, int i) {
     if (i + 7 >= cgraph->n_nodes) {
         return false;
@@ -4363,6 +4440,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
 
     cuda_ctx->q8_1_cache_reset();
     cuda_ctx->gdn_raw_input_reset();
+    cuda_ctx->gdn_raw_state_reset();
 
     static const bool disable_grouped_qkv = getenv("GGML_CUDA_DISABLE_GROUPED_QKV") != nullptr;
     static const bool disable_grouped_gdn_q8 = getenv("GGML_CUDA_DISABLE_GROUPED_GDN_Q8") != nullptr;
@@ -4462,6 +4540,11 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
             } else {
                 stream_ctx.concurrent_events.clear();
+            }
+
+            if (stream_ctx.concurrent_events.empty() &&
+                    ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+                ggml_cuda_prepare_gdn_raw_states(*cuda_ctx, cgraph, precomputed_nodes);
             }
 
             for (int i = 0; i < cgraph->n_nodes; i++) {
@@ -4648,6 +4731,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
 
     cuda_ctx->q8_1_cache_reset();
     cuda_ctx->gdn_raw_input_reset();
+    cuda_ctx->gdn_raw_state_reset();
 }
 
 #ifdef USE_CUDA_GRAPH

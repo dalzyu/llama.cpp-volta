@@ -1495,6 +1495,13 @@ struct ggml_backend_cuda_context {
     };
     std::vector<std::pair<const ggml_tensor *, gdn_raw_input>> gdn_raw_inputs;
 
+    struct gdn_raw_state {
+        const float * data;
+        const int32_t * ids;
+        int64_t row_stride;
+    };
+    std::vector<std::pair<const ggml_tensor *, gdn_raw_state>> gdn_raw_states;
+
     static std::unique_ptr<ggml_cuda_pool> new_pool_for_device(int device, int stream_no);
 
     ggml_cuda_pool & pool(int device) {
@@ -1545,6 +1552,25 @@ struct ggml_backend_cuda_context {
 
     void gdn_raw_input_reset() {
         gdn_raw_inputs.clear();
+    }
+
+    void gdn_raw_state_set(
+            const ggml_tensor * state, const float * data,
+            const int32_t * ids, int64_t row_stride) {
+        gdn_raw_states.emplace_back(state, gdn_raw_state { data, ids, row_stride });
+    }
+
+    const gdn_raw_state * gdn_raw_state_get(const ggml_tensor * state) const {
+        for (const auto & entry : gdn_raw_states) {
+            if (entry.first == state) {
+                return &entry.second;
+            }
+        }
+        return nullptr;
+    }
+
+    void gdn_raw_state_reset() {
+        gdn_raw_states.clear();
     }
 };
 
