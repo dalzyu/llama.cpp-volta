@@ -31,13 +31,28 @@ bool ggml_cuda_mul_mat_vec_q_gdn_grouped(ggml_backend_cuda_context & ctx,
     const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
     ggml_tensor * dst_gate, ggml_tensor * dst_beta);
 
+struct ggml_cuda_gdn_raw_conv_state {
+    const float * data;
+    const int32_t * ids;
+    int64_t row_stride;
+};
+
+bool ggml_cuda_can_mul_mat_vec_q_gdn_conv(ggml_backend_cuda_context & ctx,
+    const ggml_tensor * qkv, const ggml_tensor * alpha, const ggml_tensor * beta,
+    const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
+    const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
+    ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
+    ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
+    ggml_tensor * dst_gate, ggml_tensor * dst_beta);
+
 bool ggml_cuda_mul_mat_vec_q_gdn_conv(ggml_backend_cuda_context & ctx,
     const ggml_tensor * qkv, const ggml_tensor * alpha, const ggml_tensor * beta,
     const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
     const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
     ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
     ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
-    ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize);
+    ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize,
+    const ggml_cuda_gdn_raw_conv_state * raw_conv_state = nullptr);
 
 void ggml_cuda_op_mul_mat_vec_q(
     ggml_backend_cuda_context & ctx,

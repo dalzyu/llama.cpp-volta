@@ -4435,6 +4435,115 @@ static bool ggml_cuda_can_group_qkv(const ggml_cgraph * cgraph, int i) {
     return true;
 }
 
+static const ggml_cuda_gdn_raw_conv_state * ggml_cuda_get_gdn_raw_conv_state(
+        const std::vector<std::pair<const ggml_tensor *, ggml_cuda_gdn_raw_conv_state>> & states,
+        const ggml_tensor * state) {
+    for (const auto & entry : states) {
+        if (entry.first == state) {
+            return &entry.second;
+        }
+    }
+    return nullptr;
+}
+
+static void ggml_cuda_prepare_gdn_raw_conv_states(
+        ggml_backend_cuda_context & ctx, const ggml_cgraph * cgraph,
+        std::vector<const ggml_tensor *> & precomputed_nodes,
+        std::vector<std::pair<const ggml_tensor *, ggml_cuda_gdn_raw_conv_state>> & raw_states,
+        bool grouped_qkv_enabled) {
+    raw_states.clear();
+    for (int i = 0; i < cgraph->n_nodes; ++i) {
+        if (grouped_qkv_enabled && ggml_cuda_can_group_qkv(cgraph, i)) {
+            continue;
+        }
+
+        const int alpha_idx = ggml_cuda_find_groupable_gdn_q8(cgraph, i);
+        if (alpha_idx < 0) {
+            continue;
+        }
+        const int conv_idx = ggml_cuda_find_groupable_gdn_conv_q8(cgraph, i, alpha_idx);
+        if (conv_idx < 0) {
+            continue;
+        }
+
+        ggml_tensor * qkv = cgraph->nodes[i];
+        ggml_tensor * alpha = cgraph->nodes[alpha_idx];
+        ggml_tensor * beta = cgraph->nodes[alpha_idx + 6];
+        ggml_tensor * concat = cgraph->nodes[i + 3];
+        ggml_tensor * conv_state_update = cgraph->nodes[i + 6];
+        ggml_tensor * conv = cgraph->nodes[conv_idx];
+        ggml_tensor * q_norm = cgraph->nodes[conv_idx + 3];
+        ggml_tensor * k_norm = cgraph->nodes[conv_idx + 5];
+        ggml_tensor * v_conv = cgraph->nodes[conv_idx + 6];
+        ggml_tensor * gate = cgraph->nodes[alpha_idx + 5];
+        ggml_tensor * beta_sigmoid = cgraph->nodes[alpha_idx + 8];
+        const ggml_tensor * alpha_add = cgraph->nodes[alpha_idx + 2];
+        const ggml_tensor * alpha_softplus = cgraph->nodes[alpha_idx + 3];
+        const ggml_tensor * alpha_bias = alpha_add->src[0] == cgraph->nodes[alpha_idx + 1] ?
+            alpha_add->src[1] : alpha_add->src[0];
+        const ggml_tensor * alpha_scale = cgraph->nodes[alpha_idx + 4]->src[0] == alpha_softplus ?
+            cgraph->nodes[alpha_idx + 4]->src[1] : cgraph->nodes[alpha_idx + 4]->src[0];
+        const ggml_tensor * state = concat->src[0];
+        if (state == nullptr || state->op != GGML_OP_RESHAPE || state->src[0] == nullptr ||
+                state->src[0]->op != GGML_OP_GET_ROWS ||
+                !ggml_cuda_can_mul_mat_vec_q_gdn_conv(ctx, qkv, alpha, beta, alpha_bias, alpha_scale,
+                    state, conv->src[1], concat, conv_state_update, q_norm, k_norm, v_conv,
+                    gate, beta_sigmoid)) {
+            continue;
+        }
+
+        const ggml_tensor * rows = state->src[0];
+        const ggml_tensor * source = rows->src[0];
+        const ggml_tensor * ids = rows->src[1];
+        const int64_t state_size = 3*qkv->ne[0];
+        if (source == nullptr || ids == nullptr || rows->type != GGML_TYPE_F32 ||
+                source->type != GGML_TYPE_F32 || ids->type != GGML_TYPE_I32 ||
+                rows->ne[0] != state_size || rows->ne[1] != 1 || rows->ne[2] != 1 || rows->ne[3] != 1 ||
+                source->ne[0] != state_size || ggml_nelements(ids) != 1 ||
+                source->nb[0] != sizeof(float) || source->nb[1] % sizeof(float) != 0 ||
+                source->nb[1] < (size_t) state_size*sizeof(float) ||
+                source->nb[1] / sizeof(float) > (size_t) std::numeric_limits<int64_t>::max() ||
+                !ggml_is_contiguous_rows(source) || !ggml_is_contiguous(rows)) {
+            continue;
+        }
+
+        if (ggml_cuda_tensors_overlap(source, conv_state_update)) {
+            const uintptr_t source_begin = (uintptr_t) source->data;
+            const uintptr_t update_begin = (uintptr_t) conv_state_update->data;
+            if (update_begin < source_begin || (update_begin - source_begin) % source->nb[1] != 0 ||
+                    ggml_nbytes(conv_state_update) > source->nb[1]) {
+                continue;
+            }
+        }
+
+        int rows_idx = -1;
+        bool sole_consumers = true;
+        for (int j = 0; j < cgraph->n_nodes && sole_consumers; ++j) {
+            const ggml_tensor * node = cgraph->nodes[j];
+            if (node == rows) {
+                rows_idx = j;
+            }
+            for (int s = 0; s < GGML_MAX_SRC; ++s) {
+                if ((node->src[s] == rows && node != state) || (node->src[s] == state && node != concat)) {
+                    sole_consumers = false;
+                    break;
+                }
+            }
+        }
+        if (!sole_consumers || rows_idx < 0 || rows_idx >= i ||
+                !ggml_cuda_can_defer_read(cgraph, source, rows_idx + 1, i)) {
+            continue;
+        }
+
+        raw_states.emplace_back(state, ggml_cuda_gdn_raw_conv_state {
+            (const float *) source->data,
+            (const int32_t *) ids->data,
+            (int64_t) (source->nb[1] / sizeof(float)),
+        });
+        precomputed_nodes.push_back(rows);
+    }
+}
+
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, const void * graph_key) {
     bool graph_evaluated_or_captured = false;
 
@@ -4446,6 +4555,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     static const bool disable_grouped_gdn_q8 = getenv("GGML_CUDA_DISABLE_GROUPED_GDN_Q8") != nullptr;
     static const bool disable_gdn_conv_fusion = getenv("GGML_CUDA_DISABLE_GDN_CONV_FUSION") != nullptr;
     std::vector<const ggml_tensor *> precomputed_nodes;
+    std::vector<std::pair<const ggml_tensor *, ggml_cuda_gdn_raw_conv_state>> gdn_raw_conv_states;
 
     // flag used to determine whether it is an integrated_gpu
     const bool integrated            = ggml_cuda_info().devices[cuda_ctx->device].integrated;
@@ -4545,6 +4655,10 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
             if (stream_ctx.concurrent_events.empty() &&
                     ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
                 ggml_cuda_prepare_gdn_raw_states(*cuda_ctx, cgraph, precomputed_nodes);
+                if (!disable_grouped_gdn_q8 && !disable_gdn_conv_fusion) {
+                    ggml_cuda_prepare_gdn_raw_conv_states(*cuda_ctx, cgraph, precomputed_nodes,
+                        gdn_raw_conv_states, !disable_grouped_qkv);
+                }
             }
 
             for (int i = 0; i < cgraph->n_nodes; i++) {
@@ -4630,10 +4744,16 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                             const bool defer_finalize =
                                 ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA &&
                                 ggml_cuda_can_defer_gdn_finalize(cgraph, i, conv_idx, alpha_idx);
-                            if (ggml_cuda_mul_mat_vec_q_gdn_conv(*cuda_ctx, node, alpha, beta,
+                            const ggml_cuda_gdn_raw_conv_state * raw_conv_state =
+                                ggml_cuda_get_gdn_raw_conv_state(gdn_raw_conv_states, concat->src[0]);
+                            const bool fused = ggml_cuda_mul_mat_vec_q_gdn_conv(*cuda_ctx, node, alpha, beta,
                                     alpha_bias, alpha_scale, concat->src[0], conv->src[1],
                                     concat, conv_state_update, q_norm, k_norm, v_conv,
-                                    gate_reshape, beta_sigmoid, defer_finalize)) {
+                                    gate_reshape, beta_sigmoid, defer_finalize, raw_conv_state);
+                            if (!fused && raw_conv_state != nullptr) {
+                                GGML_ASSERT(ggml_cuda_compute_forward(*cuda_ctx, concat->src[0]->src[0]));
+                            }
+                            if (fused) {
                                 for (int j = 1; j <= 6; ++j) {
                                     precomputed_nodes.push_back(cgraph->nodes[i + j]);
                                 }

@@ -1197,6 +1197,7 @@ static __global__ void mul_mat_vec_q8_0_gdn_grouped(
     }
 }
 
+template <bool raw_conv_state_t>
 __launch_bounds__(2*ggml_cuda_get_physical_warp_size(), 1)
 static __global__ void mul_mat_vec_q8_0_gdn_conv(
         const void * vx_qkv, const void * vx_alpha, const void * vx_beta, const block_q8_1 * y,
@@ -1206,7 +1207,8 @@ static __global__ void mul_mat_vec_q8_0_gdn_conv(
         const uint32_t ncols_x, const uint32_t stride_row_qkv,
         const uint32_t stride_row_alpha, const uint32_t stride_row_beta,
         const uint32_t stride_row_state, const uint32_t stride_row_conv,
-        const uint32_t nblocks_qkv, const uint32_t nblocks_alpha) {
+        const uint32_t nblocks_qkv, const uint32_t nblocks_alpha,
+        const int32_t * conv_state_ids, const int64_t conv_state_slot_stride) {
     constexpr int qk = QK8_0;
     constexpr int qi = QI8_0;
     constexpr int vdr = VDR_Q8_0_Q8_1_MMVQ;
@@ -1235,7 +1237,9 @@ static __global__ void mul_mat_vec_q8_0_gdn_conv(
     tmp = warp_reduce_sum<warp_size>(tmp);
     if (threadIdx.x == 0) {
         if (is_qkv) {
-            const float * state_row = conv_states + row*stride_row_state;
+            const int64_t state_offset = raw_conv_state_t ?
+                (int64_t) conv_state_ids[0] * conv_state_slot_stride : 0;
+            const float * state_row = conv_states + state_offset + row*stride_row_state;
             const float * conv_row = conv_kernel + row*stride_row_conv;
             float sumf = 0.0f;
             sumf += state_row[0]*conv_row[0];
@@ -2213,14 +2217,14 @@ bool ggml_cuda_mul_mat_vec_q_gdn_grouped(
     return true;
 }
 
-bool ggml_cuda_mul_mat_vec_q_gdn_conv(
+bool ggml_cuda_can_mul_mat_vec_q_gdn_conv(
         ggml_backend_cuda_context & ctx,
         const ggml_tensor * qkv, const ggml_tensor * alpha, const ggml_tensor * beta,
         const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
         const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
         ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
         ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
-        ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize) {
+        ggml_tensor * dst_gate, ggml_tensor * dst_beta) {
     const ggml_tensor * src_qkv   = qkv->src[0];
     const ggml_tensor * src_alpha = alpha->src[0];
     const ggml_tensor * src_beta  = beta->src[0];
@@ -2278,6 +2282,32 @@ bool ggml_cuda_mul_mat_vec_q_gdn_conv(
         return false;
     }
 
+    return true;
+}
+
+bool ggml_cuda_mul_mat_vec_q_gdn_conv(
+        ggml_backend_cuda_context & ctx,
+        const ggml_tensor * qkv, const ggml_tensor * alpha, const ggml_tensor * beta,
+        const ggml_tensor * alpha_bias, const ggml_tensor * alpha_scale,
+        const ggml_tensor * conv_states, const ggml_tensor * conv_kernel,
+        ggml_tensor * conv_scratch, ggml_tensor * conv_state_update,
+        ggml_tensor * q_norm, ggml_tensor * k_norm, ggml_tensor * v_conv,
+        ggml_tensor * dst_gate, ggml_tensor * dst_beta, bool defer_finalize,
+        const ggml_cuda_gdn_raw_conv_state * raw_conv_state) {
+    if (!ggml_cuda_can_mul_mat_vec_q_gdn_conv(ctx, qkv, alpha, beta, alpha_bias, alpha_scale,
+            conv_states, conv_kernel, conv_scratch, conv_state_update, q_norm, k_norm, v_conv,
+            dst_gate, dst_beta) || (raw_conv_state != nullptr &&
+            (raw_conv_state->data == nullptr || raw_conv_state->ids == nullptr || raw_conv_state->row_stride <= 0))) {
+        return false;
+    }
+
+    const ggml_tensor * src_qkv   = qkv->src[0];
+    const ggml_tensor * src_alpha = alpha->src[0];
+    const ggml_tensor * src_beta  = beta->src[0];
+    const ggml_tensor * src1      = qkv->src[1];
+    float eps_q;
+    memcpy(&eps_q, q_norm->op_params, sizeof(float));
+
     const int64_t ne10 = src1->ne[0];
     const int64_t ne10_padded = GGML_PAD(ne10, MATRIX_ROW_PADDING);
     const size_t src1_q8_1_size = ne10_padded*sizeof(block_q8_1)/QK8_1;
@@ -2310,14 +2340,26 @@ bool ggml_cuda_mul_mat_vec_q_gdn_conv(
     const dim3 block_dims(ggml_cuda_info().devices[ctx.device].warp_size, 2, 1);
     const ggml_cuda_kernel_launch_params launch_params(block_nums, block_dims, 0, ctx.stream());
     // The final convolution output aliases conv_states, so keep it in concat scratch until this launch completes.
-    ggml_cuda_kernel_launch(mul_mat_vec_q8_0_gdn_conv, launch_params,
-        src_qkv->data, src_alpha->data, src_beta->data, (const block_q8_1 *) src1_q8_1,
-        (const float *) alpha_bias->data, (const float *) alpha_scale->data,
-        (const float *) conv_states->data, (const float *) conv_kernel->data,
-        (float *) conv_scratch->data, (float *) conv_state_update->data,
-        (float *) dst_gate->data, (float *) dst_beta->data,
-        (uint32_t) src_qkv->ne[0], stride_row_qkv, stride_row_alpha, stride_row_beta,
-        stride_row_state, stride_row_conv, nblocks_qkv, nblocks_alpha);
+    if (raw_conv_state != nullptr) {
+        ggml_cuda_kernel_launch(mul_mat_vec_q8_0_gdn_conv<true>, launch_params,
+            src_qkv->data, src_alpha->data, src_beta->data, (const block_q8_1 *) src1_q8_1,
+            (const float *) alpha_bias->data, (const float *) alpha_scale->data,
+            raw_conv_state->data, (const float *) conv_kernel->data,
+            (float *) conv_scratch->data, (float *) conv_state_update->data,
+            (float *) dst_gate->data, (float *) dst_beta->data,
+            (uint32_t) src_qkv->ne[0], stride_row_qkv, stride_row_alpha, stride_row_beta,
+            stride_row_state, stride_row_conv, nblocks_qkv, nblocks_alpha,
+            raw_conv_state->ids, raw_conv_state->row_stride);
+    } else {
+        ggml_cuda_kernel_launch(mul_mat_vec_q8_0_gdn_conv<false>, launch_params,
+            src_qkv->data, src_alpha->data, src_beta->data, (const block_q8_1 *) src1_q8_1,
+            (const float *) alpha_bias->data, (const float *) alpha_scale->data,
+            (const float *) conv_states->data, (const float *) conv_kernel->data,
+            (float *) conv_scratch->data, (float *) conv_state_update->data,
+            (float *) dst_gate->data, (float *) dst_beta->data,
+            (uint32_t) src_qkv->ne[0], stride_row_qkv, stride_row_alpha, stride_row_beta,
+            stride_row_state, stride_row_conv, nblocks_qkv, nblocks_alpha, nullptr, 0);
+    }
 
     if (defer_finalize) {
         ctx.gdn_raw_input_set(q_norm, (const float *) conv_scratch->data, eps_q);
