@@ -210,6 +210,12 @@ Small, fused, odd-row, indirect, and non-Volta cases retain their original
 geometry. A faster three-row prototype was rejected after initcheck exposed
 an uninitialized tail read.
 
+Experiment [080](experiments/080-volta-q6-fused-rows/) extends the two-row
+geometry to the exact 4096-row Q6_K down-projection plus residual-add fusion on
+Volta. The affected kernel falls 2.40%, and three independent fixed-clock
+`tg1024` brackets combine to +0.1436%. Dispatch is restricted to dense,
+bias-only fusion; Q4_K and four-row variants were measured and rejected.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |

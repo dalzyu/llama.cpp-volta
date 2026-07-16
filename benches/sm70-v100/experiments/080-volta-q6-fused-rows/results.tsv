@@ -1,0 +1,53 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	five_pass_candidate_a	qwen35-9b-q4_k_m	5	tg1024_tok_s	101.037475	0.122360		retained
+generation	five_pass_control	qwen35-9b-q4_k_m	5	tg1024_tok_s	100.966395	0.070667	0.0000	control
+generation	five_pass_candidate_b	qwen35-9b-q4_k_m	5	tg1024_tok_s	101.134138	0.051534		retained
+generation	five_pass_candidate_mean	qwen35-9b-q4_k_m	10	tg1024_tok_s	101.085807		0.1183	retained
+generation	group1_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.959768			retained
+generation	group1_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.875623		0.0000	control
+generation	group1_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	101.143727			retained
+generation	group1_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	101.051748		0.1746	retained
+generation	group2_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.962463			retained
+generation	group2_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.862397		0.0000	control
+generation	group2_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	101.132060			retained
+generation	group2_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	101.047261		0.1833	retained
+generation	group3_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.955926			retained
+generation	group3_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.856253		0.0000	control
+generation	group3_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.903354			retained
+generation	group3_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	100.929640		0.0728	retained
+generation	combined_candidate_mean	qwen35-9b-q4_k_m	6	tg1024_tok_s	101.009550		0.1436	retained
+generation	combined_control_mean	qwen35-9b-q4_k_m	3	tg1024_tok_s	100.864758		0.0000	control
+prototype	q4_all_two_rows	qwen35-9b-q4_k_m	5	tg1024_tok_s	100.743254	0.018341	-0.1617	rejected
+prototype	q4_all_control	qwen35-9b-q4_k_m	5	tg1024_tok_s	100.906386	0.094985	0.0000	control
+prototype	q4_4096_candidate_mean	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.773631		-0.1590	rejected
+prototype	q4_4096_control	qwen35-9b-q4_k_m	5	tg1024_tok_s	100.934080	0.096618	0.0000	control
+prototype	q6_four_rows	qwen35-9b-q4_k_m	2064	kernel_avg_ns	78654.0		9.9685	rejected
+invalid	ten_pass_candidate	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.451958	1.019452		throttled
+invalid	ten_pass_candidate	qwen35-9b-q4_k_m	1889	busy_clock_mhz	1125-1192			throttled
+invalid	ten_pass_candidate	qwen35-9b-q4_k_m	397	sw_thermal_samples	397			throttled
+profile	one_row_fused_q6	qwen35-9b-q4_k_m	2064	kernel_avg_ns	71524.1		0.0000	control
+profile	two_rows_fused_q6	qwen35-9b-q4_k_m	2064	kernel_avg_ns	69805.0		-2.4035	retained
+profile	one_row_fused_q6	qwen35-9b-q4_k_m	2064	kernel_total_ns	147625743		0.0000	control
+profile	two_rows_fused_q6	qwen35-9b-q4_k_m	2064	kernel_total_ns	144077483		-2.4035	retained
+prompt	production	qwen35-9b-q4_k_m	1	pp32768_tok_s	1994.705666		-0.1353	pass
+regression	production	gemma4-12b-q4_k_xl	1	pp32768_tok_s	1318.863866		0.0574	pass
+regression	production	gemma4-12b-q4_k_xl	1	tg1024_tok_s	69.295612		-0.0626	pass
+validation	candidate_logits	qwen35-9b-q4_k_m	128	sha256	be3f0c3b86215d5be67b9bba474d19156c3a9b6bfd87a55196772fd434fb5bd0			pass
+validation	production_ppl	qwen35-9b-q4_k_m	1	wikitext2_ppl	5.9046	1.87941		pass
+validation	targeted_fusion	q6_k_m1_n4096_k1024	1	cpu_reference	match			pass
+validation	memcheck	q6_k_target_and_graph	2	errors	0			pass
+validation	initcheck	q6_k_target_and_graph	2	errors	0			pass
+validation	synccheck	q6_k_target_and_graph	2	errors	0			pass
+validation	racecheck	q6_k_target_and_graph	2	hazards	0			pass
+validation	backend_ops	focused_q6_k_mul_mat	11	cases_passed	11			pass
+validation	backend_ops_initial	full_cuda	12995	cases_passed	12994			flaky
+validation	topk_moe_isolated	unrelated_case	10	cases_passed	10			pass
+validation	backend_ops_rerun	full_cuda	12995	cases_passed	12995			pass
+validation	test_llama_archs	all	1	exit_code	0			pass
+validation	ctest_no_backend	all	53	cases_passed	53			pass
+telemetry	group1	qwen35-9b-q4_k_m	700	busy_clock_mhz	1192-1192			pass
+telemetry	group2	qwen35-9b-q4_k_m	698	busy_clock_mhz	1192-1192			pass
+telemetry	group3	qwen35-9b-q4_k_m	702	busy_clock_mhz	1192-1192			pass
+telemetry	production	qwen35-9b-q4_k_m_pp32768	674	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_pp32768	1001	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_tg1024	330	busy_clock_mhz	1192-1192			pass

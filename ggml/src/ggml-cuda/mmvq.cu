@@ -1474,10 +1474,21 @@ static void mul_mat_vec_q_switch_fusion(
             block_nums.x == nrows_x && stride_col_dst == nrows_x;
         const bool volta = get_device_table_id(device_info.cc) == MMVQ_PARAMETERS_VOLTA;
         constexpr int rows_per_block = 2;
+        const bool bias_only = fusion.x_bias != nullptr && fusion.gate == nullptr && fusion.gate_bias == nullptr &&
+            fusion.x_scale == nullptr && fusion.gate_scale == nullptr;
         if (!has_fusion && dense_layout && nrows_x >= 65536 && nrows_x % rows_per_block == 0 && volta) {
             const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(
                 dim3((nrows_x + rows_per_block - 1)/rows_per_block, 1, 1), block_dims, nbytes_shared, stream);
             ggml_cuda_kernel_launch(mul_mat_vec_q<type, c_ncols_dst, false, small_k, rows_per_block>, launch_params,
+                vx, vy, ids, fusion, dst, ncols_x, nchannels_y, stride_row_x, stride_col_y, stride_col_dst,
+                channel_ratio, stride_channel_x, stride_channel_y, stride_channel_dst,
+                sample_ratio, stride_sample_x, stride_sample_y, stride_sample_dst, ids_stride);
+            return;
+        }
+        if (bias_only && dense_layout && nrows_x == 4096 && nrows_x % rows_per_block == 0 && volta) {
+            const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(
+                dim3((nrows_x + rows_per_block - 1)/rows_per_block, 1, 1), block_dims, nbytes_shared, stream);
+            ggml_cuda_kernel_launch(mul_mat_vec_q<type, c_ncols_dst, true, small_k, rows_per_block>, launch_params,
                 vx, vy, ids, fusion, dst, ncols_x, nchannels_y, stride_row_x, stride_col_y, stride_col_dst,
                 channel_ratio, stride_channel_x, stride_channel_y, stride_channel_dst,
                 sample_ratio, stride_sample_x, stride_sample_y, stride_sample_dst, ids_stride);

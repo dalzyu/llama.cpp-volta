@@ -1,0 +1,6 @@
+variant	arch	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+q6_k_fused_one_row	sm70	48	256	0	0	512
+q6_k_fused_two_rows	sm70	64	512	0	0	512
+q6_k_fused_four_rows	sm70	110	1024	0	0	512
+q4_k_fused_one_row	sm70	48	256	0	0	512
+q4_k_fused_two_rows	sm70	64	512	0	0	512
