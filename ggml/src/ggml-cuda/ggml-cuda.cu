@@ -3073,12 +3073,18 @@ static bool ggml_cuda_can_fuse(const struct ggml_cgraph *                cgraph,
     return false;
 }
 
-// try and fuse nodes and return the number of nodes to skip
-static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, int i) {
+static bool ggml_cuda_fusion_disabled() {
+    static const bool disabled = getenv("GGML_CUDA_DISABLE_FUSION") != nullptr &&
+        std::atoi(getenv("GGML_CUDA_DISABLE_FUSION"));
+    return disabled;
+}
 
-    static bool disable_fusion = getenv("GGML_CUDA_DISABLE_FUSION") != nullptr && std::atoi(getenv("GGML_CUDA_DISABLE_FUSION"));
+// try and fuse nodes and return the number of nodes to skip
+static int ggml_cuda_try_fuse(
+        ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, int i, ggml_tensor * q_rope = nullptr) {
+
     static const bool disable_gdn_proj_fusion = getenv("GGML_CUDA_DISABLE_GDN_PROJ_FUSION") != nullptr;
-    if (disable_fusion) {
+    if (ggml_cuda_fusion_disabled()) {
         return 0;
     }
 
@@ -3373,10 +3379,11 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         ggml_tensor * v_set_rows = cgraph->nodes[i + 4];
 
         if (ggml_cuda_should_fuse_mrope_kv_set_rows(rope, k_view, k_set_rows, v_view, v_set_rows)) {
-            ggml_cuda_op_rope_fused(*cuda_ctx, rope, k_set_rows, v_set_rows);
+            ggml_cuda_op_rope_fused(*cuda_ctx, rope, k_set_rows, v_set_rows, q_rope);
             return 4;
         }
     }
+    GGML_ASSERT(q_rope == nullptr);
 
     // RoPE + view + set-rows
     if (node->op == GGML_OP_ROPE) {
@@ -4159,6 +4166,103 @@ static bool ggml_cuda_can_defer_read(
     return true;
 }
 
+static void ggml_cuda_prepare_mrope_qkv(
+        const ggml_cgraph * cgraph,
+        std::vector<const ggml_tensor *> & precomputed_nodes,
+        std::vector<std::pair<ggml_tensor *, ggml_tensor *>> & fusions) {
+    const ggml_op ops[] = {
+        GGML_OP_ROPE, GGML_OP_MUL_MAT, GGML_OP_RESHAPE, GGML_OP_MUL_MAT,
+        GGML_OP_RESHAPE, GGML_OP_RMS_NORM, GGML_OP_MUL, GGML_OP_ROPE,
+        GGML_OP_VIEW, GGML_OP_SET_ROWS, GGML_OP_VIEW, GGML_OP_SET_ROWS, GGML_OP_VIEW,
+    };
+
+    for (int i = 0; i + 12 < cgraph->n_nodes; ++i) {
+        bool ops_match = true;
+        for (int j = 0; j < 13; ++j) {
+            if (cgraph->nodes[i + j]->op != ops[j]) {
+                ops_match = false;
+                break;
+            }
+        }
+        if (!ops_match) {
+            continue;
+        }
+
+        ggml_tensor * q          = cgraph->nodes[i];
+        ggml_tensor * v          = cgraph->nodes[i + 1];
+        ggml_tensor * v_reshape  = cgraph->nodes[i + 2];
+        ggml_tensor * k          = cgraph->nodes[i + 7];
+        ggml_tensor * k_view     = cgraph->nodes[i + 8];
+        ggml_tensor * k_set_rows = cgraph->nodes[i + 9];
+        ggml_tensor * v_view     = cgraph->nodes[i + 10];
+        ggml_tensor * v_set_rows = cgraph->nodes[i + 11];
+        ggml_tensor * q_view     = cgraph->nodes[i + 12];
+        const int k_idx = i + 7;
+
+        if (v_reshape->src[0] != v || v_view->src[0] != v_reshape ||
+                cgraph->nodes[i + 4]->src[0] != cgraph->nodes[i + 3] ||
+                cgraph->nodes[i + 5]->src[0] != cgraph->nodes[i + 4] ||
+                cgraph->nodes[i + 6]->src[0] != cgraph->nodes[i + 5] ||
+                k->src[0] != cgraph->nodes[i + 6] || q_view->src[0] != q ||
+                !ggml_can_fuse_subgraph(cgraph, k_idx,
+                    { GGML_OP_ROPE, GGML_OP_VIEW, GGML_OP_SET_ROWS, GGML_OP_VIEW, GGML_OP_SET_ROWS },
+                    { k_idx + 2, k_idx + 3, k_idx + 4 }) ||
+                !ggml_cuda_should_fuse_mrope_kv_set_rows(k, k_view, k_set_rows, v_view, v_set_rows)) {
+            continue;
+        }
+
+        if (q->src[0] == nullptr || q->src[1] == nullptr ||
+                q->type != GGML_TYPE_F32 || q->src[0]->type != GGML_TYPE_F32 ||
+                q->src[1] != k->src[1] || q->src[2] != k->src[2] ||
+                q->data != q->src[0]->data || !ggml_are_same_shape(q, q->src[0]) ||
+                !ggml_is_contiguous(q) || !ggml_is_contiguous(q->src[0]) ||
+                q->nb[0] != sizeof(float) || q->src[0]->nb[0] != sizeof(float) ||
+                q->ne[0] != k->ne[0] || q->ne[1] <= 0 ||
+                q->ne[1] > std::numeric_limits<int>::max() ||
+                q->ne[2] != k->ne[2] || q->ne[3] != 1 ||
+                ggml_get_op_params_i32(q, 1) <= 0 || ggml_get_op_params_i32(q, 1) > q->ne[0] ||
+                ggml_get_op_params_i32(q, 1) % 2 != 0 ||
+                memcmp(q->op_params, k->op_params, GGML_MAX_OP_PARAMS) != 0 ||
+                (q->flags & GGML_TENSOR_FLAG_COMPUTE) == 0 ||
+                (q->flags & GGML_TENSOR_FLAG_OUTPUT) != 0 ||
+                ggml_node_get_use_count(cgraph, i) != 1 ||
+                !ggml_cuda_can_precompute(cgraph, q, i + 1, k_idx) ||
+                !ggml_cuda_can_defer_read(cgraph, q->src[0], i + 1, k_idx)) {
+            continue;
+        }
+
+        const ggml_tensor * concurrent[] = {
+            k, k->src[0], k->src[1], k->src[2],
+            k_set_rows, k_set_rows->src[1], v_view->src[0], v_set_rows, v_set_rows->src[1],
+        };
+        bool overlaps = false;
+        for (const ggml_tensor * tensor : concurrent) {
+            if (ggml_cuda_tensors_overlap(q, tensor)) {
+                overlaps = true;
+                break;
+            }
+        }
+        if (overlaps) {
+            continue;
+        }
+
+        precomputed_nodes.push_back(q);
+        fusions.emplace_back(k, q);
+        i += 12;
+    }
+}
+
+static ggml_tensor * ggml_cuda_get_mrope_q(
+        const std::vector<std::pair<ggml_tensor *, ggml_tensor *>> & fusions,
+        const ggml_tensor * k) {
+    for (const auto & fusion : fusions) {
+        if (fusion.first == k) {
+            return fusion.second;
+        }
+    }
+    return nullptr;
+}
+
 static int ggml_cuda_find_groupable_gdn_q8(const ggml_cgraph * cgraph, int i) {
     if (i + 12 >= cgraph->n_nodes ||
             cgraph->nodes[i    ]->op != GGML_OP_MUL_MAT ||
@@ -4682,6 +4786,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     static const bool disable_q8_1_cache = getenv("GGML_CUDA_DISABLE_Q8_1_CACHE") != nullptr;
     std::vector<const ggml_tensor *> precomputed_nodes;
     std::vector<std::pair<const ggml_tensor *, ggml_cuda_gdn_raw_conv_state>> gdn_raw_conv_states;
+    std::vector<std::pair<ggml_tensor *, ggml_tensor *>> mrope_qkv_fusions;
 
     // flag used to determine whether it is an integrated_gpu
     const bool integrated            = ggml_cuda_info().devices[cuda_ctx->device].integrated;
@@ -4780,6 +4885,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
 
             if (stream_ctx.concurrent_events.empty() &&
                     ggml_cuda_info().devices[cuda_ctx->device].cc == GGML_CUDA_CC_VOLTA) {
+                if (!ggml_cuda_fusion_disabled()) {
+                    ggml_cuda_prepare_mrope_qkv(cgraph, precomputed_nodes, mrope_qkv_fusions);
+                }
                 ggml_cuda_prepare_gdn_raw_states(*cuda_ctx, cgraph, precomputed_nodes);
                 if (!disable_grouped_gdn_q8 && !disable_gdn_conv_fusion) {
                     ggml_cuda_prepare_gdn_raw_conv_states(*cuda_ctx, cgraph, precomputed_nodes,
@@ -4905,7 +5013,8 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     }
                 }
 
-                int nodes_to_skip = ggml_cuda_try_fuse(cuda_ctx, cgraph, i);
+                ggml_tensor * q_rope = ggml_cuda_get_mrope_q(mrope_qkv_fusions, node);
+                int nodes_to_skip = ggml_cuda_try_fuse(cuda_ctx, cgraph, i, q_rope);
 
                 if (nodes_to_skip != 0) {
 #ifdef GGML_CUDA_DEBUG

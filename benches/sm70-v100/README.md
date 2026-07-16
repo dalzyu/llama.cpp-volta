@@ -4,6 +4,64 @@ This directory records local optimization experiments for a Tesla V100-SXM2-16GB
 All inference commands set `CUDA_VISIBLE_DEVICES` to the V100 UUID so the RTX 4080
 is not visible to llama.cpp.
 
+## Current canonical benchmark protocol
+
+The V100 was replaced with another V100-SXM2-16GB on 2026-07-17. Results from
+the original card remain historical data. New optimization comparisons use the
+following fixed protocol unless an experiment explicitly studies power or clock
+scaling:
+
+- V100 UUID: `${V100_GPU_0_UUID}`
+- Excluded RTX 4080 UUID: `${EXCLUDED_GPU_UUID}`
+- Every CUDA process sets
+  `CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID}`.
+- Persistence mode is enabled and the board power limit is 300 W.
+- The graphics clock is locked to 1192 MHz with
+  `nvidia-smi -lgc 1192,1192` before benchmarking.
+- The memory clock is 877 MHz, the only supported memory clock on this card.
+  The driver reports that an explicit memory-clock lock is unsupported.
+- Telemetry samples at 50 ms or faster record graphics and memory clocks,
+  power, temperature, utilization, throttle reasons, and VRAM.
+- A performance run is valid only when every busy sample is exactly 1192 MHz
+  and no software power, software thermal, or hardware thermal cap is active.
+  Unlocked or throttled runs are diagnostic data, not canonical results.
+- Start a comparison group at or below 70 C. Candidate and control runs remain
+  consecutive after that so both see the same thermal history.
+
+The 1200 MHz clock survived two consecutive Gemma 4 12B `pp32768` passes with
+all 1,467 busy samples at 1200 MHz, no throttle samples, and a 79 C peak. The
+canonical clock is one supported bin lower to retain additional thermal margin.
+At 1230 MHz, two passes succeeded but the third pass reached the 83 C software
+thermal cap. Higher tested clocks also failed sustained load: 1275 and 1380 MHz
+thermally capped, while 1530 MHz could not hold its requested bin.
+
+The co-primary models and workloads are:
+
+- Gemma 4 12B Q4_K_XL: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`
+- Qwen 3.5 9B Q4_K_M: `Qwen3.5-9B-Q4_K_M.gguf`
+- Prompt processing: `pp32768`
+- Token generation: `tg1024`
+
+The initial 1192 MHz reference values are:
+
+| Model | pp32768 | tg1024 | PP peak VRAM | TG peak VRAM |
+| --- | ---: | ---: | ---: | ---: |
+| Gemma 4 12B Q4_K_XL | 1318.107017 | 69.339006 | 8404 MiB | 7624 MiB |
+| Qwen 3.5 9B Q4_K_M control | 1997.408054 | 100.096161 | 6912 MiB | 5812 MiB |
+
+`pp512` and `tg128` remain useful screens but cannot justify retaining a
+change. Long comparisons use the same binary and a candidate/control/candidate
+bracket when a runtime control is possible. The two candidate values are
+averaged against the center control. If a runtime control is not possible,
+equivalent alternating builds are used. Default batch settings remain
+`-b 2048 -ub 512`, FlashAttention remains `auto`, and all layers are offloaded.
+
+Correctness gates include matched perplexity and saved-logit hashes on the
+affected model, focused CUDA backend tests, the complete backend suite before a
+checkpoint, and Compute Sanitizer for new or substantially changed kernels.
+Performance improvements are not retained if these gates detect an accuracy or
+memory-safety change.
+
 ## Baseline
 
 - Revision: `99f3dc32296f825fec94f202da1e9fede1e78cf9`

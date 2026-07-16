@@ -1,0 +1,5 @@
+variant	arch	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+standard_mrope	sm70	21	0	0	0	465
+fused_mrope_k_no_v	sm70	21	0	0	0	520
+fused_mrope_kv	sm70	24	0	0	0	520
+fused_mrope_qkv	sm70	24	0	0	0	532
