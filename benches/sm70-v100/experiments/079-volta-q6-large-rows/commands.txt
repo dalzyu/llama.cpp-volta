@@ -1,0 +1,36 @@
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -pm 1
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -pl 300
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -lgc 1192,1192
+cmake --build build --target llama-bench llama-perplexity test-backend-ops test-llama-archs -j 8
+
+# Every long benchmark was accompanied by a 50 ms nvidia-smi telemetry stream
+# recording clocks, power, temperature, utilization, throttle reasons, and
+# VRAM. The final generation comparison used a temporary source-level control
+# that disabled only the new Q6_K dispatch, in candidate/control/candidate order.
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 1024 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 32768 -n 0 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-bench -m build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 32768 -n 0 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-bench -m build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf -p 0 -n 1024 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-perplexity -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -f wikitext-2-raw/wiki.test.raw -c 128 -b 1 -ub 1 --chunks 1 -ngl 99 -sm none -mg 0 -fa auto --no-warmup --save-all-logits /tmp/exp079-safe-candidate.logits
+cmp /tmp/exp079-safe-candidate.logits /tmp/exp078-production.logits
+sha256sum /tmp/exp079-safe-candidate.logits /tmp/exp078-production.logits
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K' -j 1
+
+# Temporary test-backend-ops cases added Q6_K F32 cases with
+# m=65536,n=1,k=1024 and m=65537,n=1,k=1024. They were removed after these
+# CPU-reference and sanitizer checks.
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K.*m=6553(6|7),n=1,k=1024' -j 1
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool memcheck --error-exitcode=99 build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K.*m=6553(6|7),n=1,k=1024' -j 1
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool initcheck --error-exitcode=99 build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K.*m=6553(6|7),n=1,k=1024' -j 1
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool synccheck --error-exitcode=99 build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K.*m=6553(6|7),n=1,k=1024' -j 1
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} /usr/local/cuda-12.9/bin/compute-sanitizer --tool racecheck --error-exitcode=99 build/bin/test-backend-ops test -b CUDA0 -o MUL_MAT -p 'type_a=q6_K.*m=65536,n=1,k=1024' -j 1
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/test-backend-ops test -b CUDA0
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/test-llama-archs
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} ctest --test-dir build --output-on-failure -E '^test-backend-ops$'
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/exp079-qwen9-tg1024-safe build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 1024 -r 1 -ngl -1 -sm layer -mg 0 -fa auto -b 2048 -ub 512
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_gb_sum --format csv /tmp/exp079-qwen9-tg1024-safe.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so

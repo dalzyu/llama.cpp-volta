@@ -1,0 +1,5 @@
+variant	arch	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+q6_k_one_row	sm70	40	128	0	0	512
+q6_k_two_rows	sm70	64	256	0	0	512
+q6_k_three_rows	sm70	66	384	0	0	512
+q6_k_four_rows	sm70	80	512	0	0	512

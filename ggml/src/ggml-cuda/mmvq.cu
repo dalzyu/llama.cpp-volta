@@ -528,7 +528,7 @@ static constexpr __host__ __device__ int calc_rows_per_block(
     return 1;
 }
 
-template <ggml_type type, int ncols_dst, bool has_fusion, bool small_k = false>
+template <ggml_type type, int ncols_dst, bool has_fusion, bool small_k = false, int rows_per_block_override = 0>
 __launch_bounds__(calc_nwarps(type, ncols_dst, get_device_table_id(), small_k)*ggml_cuda_get_physical_warp_size(),
                   calc_min_blocks_per_sm(type, ncols_dst, get_device_table_id(), has_fusion, small_k))
 static __global__ void mul_mat_vec_q(
@@ -548,7 +548,8 @@ static __global__ void mul_mat_vec_q(
     constexpr int vdr = get_vdr_mmvq(type);
     constexpr mmvq_parameter_table_id table_id = get_device_table_id();
     constexpr int nwarps = calc_nwarps(type, ncols_dst, table_id, small_k);
-    constexpr int rows_per_cuda_block = calc_rows_per_block(type, ncols_dst, table_id, small_k, nwarps, has_fusion);
+    constexpr int rows_per_cuda_block = rows_per_block_override > 0 ? rows_per_block_override :
+        calc_rows_per_block(type, ncols_dst, table_id, small_k, nwarps, has_fusion);
     constexpr int warp_size = ggml_cuda_get_physical_warp_size();
 
     constexpr vec_dot_q_cuda_t vec_dot_q_cuda = get_vec_dot_q_cuda(type);
@@ -1465,6 +1466,24 @@ static void mul_mat_vec_q_switch_fusion(
 
     const bool has_fusion = fusion.gate != nullptr || fusion.x_bias != nullptr || fusion.gate_bias != nullptr ||
                             fusion.x_scale != nullptr || fusion.gate_scale != nullptr;
+    if constexpr (type == GGML_TYPE_Q6_K && c_ncols_dst == 1 && !small_k) {
+        const int device = ggml_cuda_get_device();
+        const auto & device_info = ggml_cuda_info().devices[device];
+        const bool dense_layout = ids == nullptr && block_nums.y == 1 && block_nums.z == 1 &&
+            block_dims.x == uint32_t(device_info.warp_size) && block_dims.y == 2 && block_dims.z == 1 &&
+            block_nums.x == nrows_x && stride_col_dst == nrows_x;
+        const bool volta = get_device_table_id(device_info.cc) == MMVQ_PARAMETERS_VOLTA;
+        constexpr int rows_per_block = 2;
+        if (!has_fusion && dense_layout && nrows_x >= 65536 && nrows_x % rows_per_block == 0 && volta) {
+            const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(
+                dim3((nrows_x + rows_per_block - 1)/rows_per_block, 1, 1), block_dims, nbytes_shared, stream);
+            ggml_cuda_kernel_launch(mul_mat_vec_q<type, c_ncols_dst, false, small_k, rows_per_block>, launch_params,
+                vx, vy, ids, fusion, dst, ncols_x, nchannels_y, stride_row_x, stride_col_y, stride_col_dst,
+                channel_ratio, stride_channel_x, stride_channel_y, stride_channel_dst,
+                sample_ratio, stride_sample_x, stride_sample_y, stride_sample_dst, ids_stride);
+            return;
+        }
+    }
     if constexpr (type == GGML_TYPE_Q8_0 && c_ncols_dst == 1 && !small_k) {
         const int device = ggml_cuda_get_device();
         const auto & device_info = ggml_cuda_info().devices[device];

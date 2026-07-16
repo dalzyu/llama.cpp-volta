@@ -202,6 +202,14 @@ pre-existing 320-wide Volta FlashAttention launch failure discovered by the
 full validation sweep. That head size now stays on the existing tile kernel;
 the optimized 256-wide path remains unchanged.
 
+Experiment [079](experiments/079-volta-q6-large-rows/) computes two adjacent
+rows per block for large, dense, non-fused Q6_K matrix-vector products on
+Volta. It halves the Qwen 3.5 9B vocabulary projection grid, reduces that
+kernel by 6.20%, and improves the fixed-1192-MHz `tg1024` bracket by 0.5251%.
+Small, fused, odd-row, indirect, and non-Volta cases retain their original
+geometry. A faster three-row prototype was rejected after initcheck exposed
+an uninitialized tail read.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |

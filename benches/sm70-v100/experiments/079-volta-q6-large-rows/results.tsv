@@ -1,0 +1,42 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+screen	one_row	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.268826	0.100964	0.0000	control
+screen	two_rows_global	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.649889		0.3800	rejected
+screen	three_rows_global	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.633293		0.3635	rejected
+screen	four_rows_global	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.556038		0.2864	rejected
+generation	three_rows_large_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	100.832555		0.6266	unsafe
+generation	three_rows_large_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.204698		0.0000	control
+screen	two_rows_large_even	qwen35-9b-q4_k_m	10	tg1024_tok_s	100.797503	0.107918	0.5273	retained
+generation	candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.750581			retained
+generation	disabled_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.167528		0.0000	control
+generation	candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.636482			retained
+generation	candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	100.693532		0.5251	retained
+prompt	production	qwen35-9b-q4_k_m	1	pp32768_tok_s	1995.130211		-0.1140	pass
+regression	production	gemma4-12b-q4_k_xl	1	pp32768_tok_s	1318.813671		0.0536	pass
+regression	production	gemma4-12b-q4_k_xl	1	tg1024_tok_s	69.301057		-0.0547	pass
+profile	one_row_large	qwen35-9b-q4_k_m	1025	kernel_avg_ns	1143763.4		0.0000	control
+profile	two_rows_large	qwen35-9b-q4_k_m	1025	kernel_avg_ns	1072851.6		-6.1999	retained
+profile	one_row_large	qwen35-9b-q4_k_m	1025	kernel_total_ns	1172357517		0.0000	control
+profile	two_rows_large	qwen35-9b-q4_k_m	1025	kernel_total_ns	1099672871		-6.1999	retained
+profile	one_row_small	qwen35-9b-q4_k_m	5125	kernel_avg_ns	11043.9		0.0000	control
+profile	two_rows_large_small_fallback	qwen35-9b-q4_k_m	5125	kernel_avg_ns	11050.4		0.0589	pass
+profile	one_row_fused	qwen35-9b-q4_k_m	16400	kernel_avg_ns	71575.7		0.0000	control
+profile	two_rows_large_fused_fallback	qwen35-9b-q4_k_m	16400	kernel_avg_ns	71570.2		-0.0077	pass
+validation	candidate_logits	qwen35-9b-q4_k_m	128	sha256	be3f0c3b86215d5be67b9bba474d19156c3a9b6bfd87a55196772fd434fb5bd0			pass
+validation	production_ppl	qwen35-9b-q4_k_m	1	wikitext2_ppl	5.9046	1.87941		pass
+validation	boundary_even	q6_k_m65536_n1_k1024	1	cpu_reference	match			pass
+validation	boundary_odd	q6_k_m65537_n1_k1024	1	cpu_reference	match			pass
+validation	memcheck	q6_k_boundaries	2	errors	0			pass
+validation	initcheck	q6_k_boundaries	2	errors	0			pass
+validation	synccheck	q6_k_boundaries	2	errors	0			pass
+validation	racecheck	q6_k_m65536_n1_k1024	1	hazards	0			pass
+validation	initcheck	three_rows_m65537	1	uninitialized_reads	28			rejected
+validation	backend_ops	focused_q6_k_mul_mat	11	cases_passed	11			pass
+validation	backend_ops	full_cuda	12995	cases_passed	12995			pass
+validation	test_llama_archs	all	1	exit_code	0			pass
+validation	ctest_no_backend	all	53	cases_passed	53			pass
+telemetry	candidate_a	qwen35-9b-q4_k_m	231	busy_clock_mhz	1192-1192			pass
+telemetry	disabled_control	qwen35-9b-q4_k_m	233	busy_clock_mhz	1192-1192			pass
+telemetry	candidate_b	qwen35-9b-q4_k_m	232	busy_clock_mhz	1192-1192			pass
+telemetry	production	qwen35-9b-q4_k_m_pp32768	671	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_pp32768	1001	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_tg1024	333	busy_clock_mhz	1192-1192			pass
