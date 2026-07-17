@@ -1,0 +1,6 @@
+57d1997790d1744fba5b40a7317df71ea5e2acee28c47e78f0cce39c0703f8cf  build/bin/models/Qwen3.5-0.8B-Q4_0.gguf
+75526add2fec8543a78d412a5546dd1c13dcf1ade237b245915d0f12dd43bb3d  build/bin/models/Qwen3.5-0.8B-Q8_0.gguf
+03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8  build/bin/models/Qwen3.5-9B-Q4_K_M.gguf
+cc9ff072e0a8203429ed854e6662c17a6c2bc1e5dca5b475dd4736caaacbc165  build/bin/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+5c2bb1598727e0307f968db0304201fecce135c6659aff94d63d72cb80f978a1  build/bin/models/Qwen_Qwen3.6-27B-Q2_K.gguf
+9188a71055550f1e60b875d02b7abb63625ac11b4a6f148d6b22b3b28ba3d335  build/bin/models/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf
