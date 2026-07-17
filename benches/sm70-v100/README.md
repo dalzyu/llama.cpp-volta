@@ -222,6 +222,11 @@ warp-row kernel. The affected kernel falls 7.16%, and three independent
 fixed-clock `tg1024` brackets combine to +1.2888%. One, four, and eight rows
 per block were measured and rejected.
 
+Experiment [082](experiments/082-volta-q5-warp-rows/) is the final rejected
+sweep. A dedicated four-row Q5_K kernel reduced the 4096x8192 QKV kernel by
+1.90%, but two fixed-clock `tg1024` brackets combined to -0.2567%. The
+4096x4096 variant also regressed 4.68%, so all Q5_K prototype code was removed.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |

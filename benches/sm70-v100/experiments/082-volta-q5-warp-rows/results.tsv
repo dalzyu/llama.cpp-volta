@@ -1,0 +1,23 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+profile	generic_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_avg_ns	35496.7		0.0000	control
+profile	one_row_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_avg_ns	35958.6		1.3014	rejected
+profile	two_rows_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_avg_ns	35434.2		-0.1760	rejected
+profile	four_rows_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_avg_ns	34821.5		-1.9021	best_prototype
+profile	eight_rows_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_avg_ns	34944.1		-1.5567	rejected
+profile	generic_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_total_ns	109897722		0.0000	control
+profile	four_rows_q5_k_8192	qwen35-9b-q4_k_m	3096	kernel_total_ns	107807332		-1.9021	best_prototype
+profile	generic_q5_k_4096	qwen35-9b-q4_k_m	3096	kernel_total_ns	64505413		0.0000	control
+profile	four_rows_q5_k_4096	qwen35-9b-q4_k_m	3096	kernel_total_ns	67522416		4.6771	rejected
+generation	group1_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	101.950300			rejected
+generation	group1_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.260293		0.0000	control
+generation	group1_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	101.990030			rejected
+generation	group1_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	101.970165		-0.2837	rejected
+generation	group2_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	101.936557			rejected
+generation	group2_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.220263		0.0000	control
+generation	group2_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.034479			rejected
+generation	group2_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	101.985518		-0.2296	rejected
+generation	combined_candidate_mean	qwen35-9b-q4_k_m	4	tg1024_tok_s	101.977842		-0.2567	rejected
+generation	combined_control_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	102.240278		0.0000	control
+telemetry	group1	qwen35-9b-q4_k_m	692	busy_clock_mhz	1192-1192			pass
+telemetry	group2	qwen35-9b-q4_k_m	694	busy_clock_mhz	1192-1192			pass
+validation	final_source	qwen35-9b-q4_k_m	1	tg128_tok_s	102.173882			pass

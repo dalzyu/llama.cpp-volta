@@ -1,0 +1,18 @@
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -pm 1
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -pl 300
+sudo -n nvidia-smi -i ${V100_GPU_0_UUID} -lgc 1192,1192
+cmake --build build --target llama-bench -j 8
+
+# The temporary selector accepted 0 for generic and 1, 2, 4, or 8 for the
+# dedicated row packing. It is absent from retained source.
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} GGML_CUDA_Q5_K_WARP_ROWS=4 /usr/local/cuda-12.9/bin/nsys profile --trace=cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --force-overwrite=true -o /tmp/exp082-q5-warp-r4-8192 build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 128 -r 1 -ngl -1 -sm layer -mg 0 -fa auto -b 2048 -ub 512
+/usr/local/cuda-12.9/bin/nsys stats --report cuda_gpu_kern_gb_sum --format csv /tmp/exp082-q5-warp-r4-8192.nsys-rep
+/usr/local/cuda-12.9/bin/cuobjdump --dump-resource-usage build/bin/libggml-cuda.so
+
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} GGML_CUDA_Q5_K_WARP_ROWS=4 build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 1024 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} GGML_CUDA_Q5_K_WARP_ROWS=0 build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 1024 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv
+
+# Rebuild and smoke the restored experiment-081 source after removing the
+# prototype.
+cmake --build build --target llama-bench test-backend-ops -j 8
+CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID} build/bin/llama-bench -m build/bin/models/Qwen3.5-9B-Q4_K_M.gguf -p 0 -n 128 -r 1 -b 2048 -ub 512 -ngl -1 -sm layer -mg 0 -fa auto -o csv

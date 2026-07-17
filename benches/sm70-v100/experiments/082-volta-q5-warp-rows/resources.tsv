@@ -1,0 +1,6 @@
+variant	arch	registers_per_thread	static_shared_bytes	local_bytes	stack_bytes	constant0_bytes
+generic_q5_k	sm70	40	384	0	0	512
+warp_rows_one	sm70	40	0	0	0	384
+warp_rows_two	sm70	38	0	0	0	384
+warp_rows_four	sm70	38	0	0	0	384
+warp_rows_eight	sm70	38	0	0	0	384
