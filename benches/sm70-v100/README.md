@@ -21,12 +21,15 @@ scaling:
 - The memory clock is 877 MHz, the only supported memory clock on this card.
   The driver reports that an explicit memory-clock lock is unsupported.
 - Telemetry samples at 50 ms or faster record graphics and memory clocks,
-  power, temperature, utilization, throttle reasons, and VRAM.
-- A performance run is valid only when every busy sample is exactly 1192 MHz
-  and no software power, software thermal, or hardware thermal cap is active.
-  Unlocked or throttled runs are diagnostic data, not canonical results.
-- Start a comparison group at or below 70 C. Candidate and control runs remain
-  consecutive after that so both see the same thermal history.
+  power, GPU and HBM temperatures, utilization, throttle reasons, and VRAM.
+- A performance run is valid only when every sample with nonzero GPU
+  utilization is exactly 1192/877 MHz and no software power, software thermal,
+  or hardware thermal cap is active. Unlocked or throttled runs are diagnostic
+  data, not canonical results.
+- Run each workload in a separate invocation. Before every invocation, require
+  three consecutive checks with GPU and HBM temperatures at or below 50 C and
+  GPU utilization at 0%. Cool both candidate and control independently, and
+  alternate revision order between rounds.
 
 The 1200 MHz clock survived two consecutive Gemma 4 12B `pp32768` passes with
 all 1,467 busy samples at 1200 MHz, no throttle samples, and a 79 C peak. The
@@ -34,6 +37,13 @@ canonical clock is one supported bin lower to retain additional thermal margin.
 At 1230 MHz, two passes succeeded but the third pass reached the 83 C software
 thermal cap. Higher tested clocks also failed sustained load: 1275 and 1380 MHz
 thermally capped, while 1530 MHz could not hold its requested bin.
+
+Combined multi-workload invocations are not valid for the larger models at
+1192 MHz because accumulated heat can cap later tests. A standalone Qwen 3.6
+27B `pp32768` qualification beginning at 49 C held 1192/877 MHz for all 1,755
+busy samples with no caps and 79 C peak GPU and HBM temperatures. This is why
+the canonical protocol isolates and cools each workload rather than lowering
+the fixed clock for only the longest model.
 
 The co-primary models and workloads are:
 
