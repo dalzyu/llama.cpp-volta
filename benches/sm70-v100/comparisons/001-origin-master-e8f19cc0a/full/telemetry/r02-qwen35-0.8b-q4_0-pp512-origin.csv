@@ -1,0 +1,15 @@
+timestamp,graphics_clock_mhz,memory_clock_mhz,power_w,gpu_temperature_c,memory_temperature_c,gpu_util_pct,memory_used_mib,sw_power_cap,sw_thermal_slowdown,hw_thermal_slowdown
+2026/07/17 10:28:44.365, 1192, 877, 36.46, 50, 49, 0, 6, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.418, 1192, 877, 36.46, 50, 49, 0, 8, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.471, 1192, 877, 36.46, 50, 49, 0, 8, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.523, 1192, 877, 36.46, 50, 49, 3, 316, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.575, 1192, 877, 36.46, 50, 49, 3, 316, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.627, 1192, 877, 36.46, 50, 49, 3, 316, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.679, 1192, 877, 36.94, 50, 49, 12, 844, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.733, 1192, 877, 36.94, 50, 49, 12, 844, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.785, 1192, 877, 36.94, 50, 49, 12, 844, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.838, 1192, 877, 36.94, 50, 49, 12, 844, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.889, 1192, 877, 48.99, 50, 49, 89, 1422, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.941, 1192, 877, 63.95, 51, 50, 89, 1430, Not Active, Not Active, Not Active
+2026/07/17 10:28:44.993, 1192, 877, 67.29, 51, 50, 89, 394, Not Active, Not Active, Not Active
+2026/07/17 10:28:45.045, 1192, 877, 37.43, 51, 49, 69, 394, Not Active, Not Active, Not Active

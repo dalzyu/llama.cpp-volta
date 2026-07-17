@@ -1,0 +1,25 @@
+timestamp,graphics_clock_mhz,memory_clock_mhz,power_w,gpu_temperature_c,memory_temperature_c,gpu_util_pct,memory_used_mib,sw_power_cap,sw_thermal_slowdown,hw_thermal_slowdown
+2026/07/17 10:31:20.231, 1192, 877, 37.91, 50, 48, 0, 6, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.284, 1192, 877, 37.91, 50, 48, 0, 8, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.336, 1192, 877, 37.91, 50, 48, 0, 8, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.388, 1192, 877, 37.91, 50, 48, 0, 316, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.440, 1192, 877, 37.91, 50, 48, 0, 316, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.492, 1192, 877, 37.91, 50, 48, 0, 316, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.543, 1192, 877, 37.91, 50, 48, 3, 1080, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.596, 1192, 877, 38.40, 50, 48, 3, 1080, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.649, 1192, 877, 38.40, 50, 48, 3, 1080, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.702, 1192, 877, 38.40, 50, 48, 93, 1080, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.754, 1192, 877, 38.40, 50, 48, 93, 1080, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.806, 1192, 877, 38.88, 50, 48, 93, 1268, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.858, 1192, 877, 81.67, 50, 49, 93, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.910, 1192, 877, 85.11, 50, 50, 81, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:20.961, 1192, 877, 84.09, 51, 51, 81, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.013, 1192, 877, 84.09, 51, 51, 81, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.065, 1192, 877, 88.49, 51, 51, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.117, 1192, 877, 88.49, 51, 51, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.169, 1192, 877, 88.43, 51, 51, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.221, 1192, 877, 85.53, 51, 52, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.273, 1192, 877, 84.14, 51, 51, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.325, 1192, 877, 89.45, 51, 52, 97, 1274, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.376, 1192, 877, 61.53, 51, 52, 97, 360, Not Active, Not Active, Not Active
+2026/07/17 10:31:21.428, 1192, 877, 38.88, 51, 50, 97, 358, Not Active, Not Active, Not Active

@@ -3,6 +3,15 @@
 This comparison measures the merged `sm70-opt` branch against its exact
 `origin/master` parent after the 2026-07-17 upstream merge.
 
+## Status
+
+The user stopped this matrix after 147 of 300 accepted measurements. The
+completed results under `full/` are preserved, but the matrix is incomplete
+and must not be summarized as a finished comparison. It ran on the local
+single-V100 host at 300 W before the project moved to the remote dual-V100
+server and adopted a 175 W-per-GPU ceiling. Treat it as historical diagnostic
+data, not as the baseline for subsequent server optimization.
+
 ## Revisions
 
 - Control: `e8f19cc0ad70a243c8012bf17b4be601abfc8ea2`
