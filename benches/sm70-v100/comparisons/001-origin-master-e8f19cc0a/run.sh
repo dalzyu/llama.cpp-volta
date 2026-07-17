@@ -116,6 +116,7 @@ trim() {
 
 validate_environment() {
     git -C "$ROOT" diff --quiet "$EXPECTED_BRANCH" HEAD -- . \
+        ':(exclude)benches/sm70-v100/README.md' \
         ':(exclude)benches/sm70-v100/comparisons/001-origin-master-e8f19cc0a' || \
         fail "source changes after the candidate revision would make its binary stale"
     [[ $(git -C "$ORIGIN_WORKTREE" rev-parse HEAD) == "$EXPECTED_ORIGIN" ]] || fail "unexpected origin revision"
