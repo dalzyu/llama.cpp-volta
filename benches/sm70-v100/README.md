@@ -216,6 +216,12 @@ Volta. The affected kernel falls 2.40%, and three independent fixed-clock
 `tg1024` brackets combine to +0.1436%. Dispatch is restricted to dense,
 bias-only fusion; Q4_K and four-row variants were measured and rejected.
 
+Experiment [081](experiments/081-volta-q4-gate-warp-rows/) replaces the exact
+Qwen 3.5 9B 4096x12288 fused Q4_K SWIGLU projection with a dedicated Volta
+warp-row kernel. The affected kernel falls 7.16%, and three independent
+fixed-clock `tg1024` brackets combine to +1.2888%. One, four, and eight rows
+per block were measured and rejected.
+
 | Controlled comparison | Before | After | Change |
 | --- | ---: | ---: | ---: |
 | Gemma 4 12B Q4_0 tg128 | 69.442 | 70.252 | +1.17% |

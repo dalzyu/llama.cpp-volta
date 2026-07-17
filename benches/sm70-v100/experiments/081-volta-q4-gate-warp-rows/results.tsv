@@ -1,0 +1,50 @@
+area	variant	model_or_case	repetitions	metric	value	stddev	change_pct	result
+generation	group1_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.258508			retained
+generation	group1_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.944141		0.0000	control
+generation	group1_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.229445			retained
+generation	group1_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	102.243977		1.2877	retained
+generation	group2_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.255444			retained
+generation	group2_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.953726		0.0000	control
+generation	group2_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.247229			retained
+generation	group2_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	102.251337		1.2854	retained
+generation	group3_candidate_a	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.266348			retained
+generation	group3_control	qwen35-9b-q4_k_m	1	tg1024_tok_s	100.956682		0.0000	control
+generation	group3_candidate_b	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.258569			retained
+generation	group3_candidate_mean	qwen35-9b-q4_k_m	2	tg1024_tok_s	102.262458		1.2934	retained
+generation	combined_candidate_mean	qwen35-9b-q4_k_m	6	tg1024_tok_s	102.252590		1.2888	retained
+generation	combined_control_mean	qwen35-9b-q4_k_m	3	tg1024_tok_s	100.951516		0.0000	control
+generation	production	qwen35-9b-q4_k_m	1	tg1024_tok_s	102.211735		1.2483	pass
+profile	generic_fused_q4_k	qwen35-9b-q4_k_m	4128	kernel_avg_ns	77215.6		0.0000	control
+profile	warp_rows_fused_q4_k	qwen35-9b-q4_k_m	4128	kernel_avg_ns	71688.9		-7.1576	retained
+profile	generic_fused_q4_k	qwen35-9b-q4_k_m	4128	kernel_total_ns	318746110		0.0000	control
+profile	warp_rows_fused_q4_k	qwen35-9b-q4_k_m	4128	kernel_total_ns	295931673		-7.1576	retained
+geometry	one_row	qwen35-9b-q4_k_m	4128	kernel_avg_ns	71816.4		0.1779	rejected
+geometry	two_rows	qwen35-9b-q4_k_m	4128	kernel_avg_ns	71688.9		0.0000	retained
+geometry	four_rows	qwen35-9b-q4_k_m	4128	kernel_avg_ns	71769.5		0.1124	rejected
+geometry	eight_rows	qwen35-9b-q4_k_m	4128	kernel_avg_ns	72532.4		1.1766	rejected
+prompt	production	qwen35-9b-q4_k_m	1	pp32768_tok_s	1993.939696		-0.0384	pass
+regression	production	gemma4-12b-q4_k_xl	1	pp32768_tok_s	1318.427188		-0.0331	pass
+regression	production	gemma4-12b-q4_k_xl	1	tg1024_tok_s	69.231227		-0.0929	pass
+accuracy	candidate	qwen35-9b-q4_k_m	1	wikitext2_ppl	5.9002	1.87612		pass
+accuracy	control	qwen35-9b-q4_k_m	1	wikitext2_ppl	5.9046	1.87941		control
+accuracy	candidate_vs_control	qwen35-9b-q4_k_m	1	kl_divergence	0.00047	0.00010		pass
+accuracy	candidate_vs_control	qwen35-9b-q4_k_m	1	probability_rms_pct	0.540	0.091		pass
+accuracy	candidate_vs_control	qwen35-9b-q4_k_m	1	same_top_probability_pct	98.413	1.587		pass
+validation	candidate_logits	qwen35-9b-q4_k_m	128	sha256	71d53bf8df76b1f23976ddfb0bf5f004a5575091ae531b585238ba288fda47ba			pass
+validation	control_logits	qwen35-9b-q4_k_m	128	sha256	be3f0c3b86215d5be67b9bba474d19156c3a9b6bfd87a55196772fd434fb5bd0			control
+validation	targeted_fusion	q4_k_m1_n12288_k4096	1	cpu_reference	match			pass
+validation	memcheck	q4_k_target	1	errors	0			pass
+validation	initcheck	q4_k_target	1	errors	0			pass
+validation	synccheck	q4_k_target	1	errors	0			pass
+validation	racecheck	q4_k_target	1	hazards	0			pass
+validation	backend_ops	focused_q4_k_fusion	30	cases_passed	30			pass
+validation	backend_ops	full_cuda	12995	cases_passed	12995			pass
+validation	test_llama_archs	all	1	exit_code	0			pass
+validation	ctest_no_backend	all	53	cases_passed	53			pass
+telemetry	group1	qwen35-9b-q4_k_m	684	busy_clock_mhz	1192-1192			pass
+telemetry	group2	qwen35-9b-q4_k_m	693	busy_clock_mhz	1192-1192			pass
+telemetry	group3	qwen35-9b-q4_k_m	697	busy_clock_mhz	1192-1192			pass
+telemetry	production	qwen35-9b-q4_k_m_tg1024	229	busy_clock_mhz	1192-1192			pass
+telemetry	production	qwen35-9b-q4_k_m_pp32768	670	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_pp32768	998	busy_clock_mhz	1192-1192			pass
+telemetry	production	gemma4-12b-q4_k_xl_tg1024	336	busy_clock_mhz	1192-1192			pass
