@@ -10,7 +10,7 @@ UUIDs and machine paths use the placeholders defined in
 
 | Item | Value |
 | --- | --- |
-| Candidate revision | `c55f89a84aad4e3003f40bef232cc9764732d083` |
+| Candidate revision | `11023dd82144986d7fd861cd9bcdc9f132a89d5b` |
 | Upstream control | `e8f19cc0ad70a243c8012bf17b4be601abfc8ea2` |
 | GPU 0 | `${V100_GPU_0_UUID}` |
 | GPU 1 | `${V100_GPU_1_UUID}` |
@@ -181,7 +181,7 @@ the tensor meta-backend all-reduce. For a numerical change:
 7. Run the complete CUDA backend suite and Compute Sanitizer before retaining a
    changed kernel.
 
-The short four-chunk layer gate at revision `c55f89a84` passed with a 0.0132%
+The short four-chunk layer gate at revision `11023dd82` passed with a 0.0132%
 PPL increase, mean KLD 0.000028, 0.092% RMS probability delta, and 99.804%
 top-token agreement. It is a screening gate, not a substitute for the longer
 final quality run.

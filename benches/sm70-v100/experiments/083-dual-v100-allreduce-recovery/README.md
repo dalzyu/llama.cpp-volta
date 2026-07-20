@@ -56,7 +56,7 @@ values. The upstream self-comparison is therefore a required control.
 
 | Item | Value |
 | --- | --- |
-| Candidate | `c55f89a84aad4e3003f40bef232cc9764732d083` |
+| Candidate | `11023dd82144986d7fd861cd9bcdc9f132a89d5b` |
 | Upstream | `e8f19cc0ad70a243c8012bf17b4be601abfc8ea2` |
 | Model | Gemma 4 31B QAT Q4_0 |
 | Model SHA-256 | `9188a71055550f1e60b875d02b7abb63625ac11b4a6f148d6b22b3b28ba3d335` |

@@ -61,9 +61,11 @@ must not be compared as if they came from the same benchmark environment.
 ## Repository status
 
 The branch preserves its development sequence rather than squashing the
-experiments into one patch. Its branch-only history was rewritten once to
-remove environment identifiers from every snapshot; the publication notes map
-legacy benchmark revision strings to their rewritten equivalents. It is
+experiments into one patch. Its branch-only history was mechanically rewritten
+for publication to remove environment identifiers from every snapshot and to
+use the fork owner's GitHub-linked author and committer identity. Shared
+upstream commits retain their original metadata. The publication notes map
+legacy benchmark revision strings to their published equivalents. This is
 maintained as a research fork, not as one combined upstream contribution.
 Upstream llama.cpp documentation remains the authority for general build and
 usage instructions.

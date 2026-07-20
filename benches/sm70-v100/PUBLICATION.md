@@ -42,10 +42,18 @@ checksums of the normalized log files.
 
 ## Rewritten history
 
-All 83 commits that existed only on `sm70-opt` were rewritten before
-publication. Shared upstream commits were not rewritten. The rewritten commits
-preserve the original authors, timestamps, subjects, order, and merge topology,
-and each carries a `History-Rewritten: public-sanitization-v1` trailer.
+Branch-only history was mechanically rewritten for publication. The initial
+pass removed environment identifiers. After upstream `master` through
+`571d0d540df04f25298d0e159e520d9fc62ed121` was merged, the branch-side author
+and committer metadata was set to the fork owner's GitHub-linked identity,
+`dalzyu <85581627+dalzyu@users.noreply.github.com>`. Shared upstream commits
+were not rewritten and retain their original identities.
+
+The identity pass preserved commit trees, timestamps, subjects, message bodies
+apart from the rewrite-version trailer, order, and merge topology. Every
+branch-side commit in this published state also carries
+`Assisted-by: OpenAI Codex` and
+`History-Rewritten: public-sanitization-v3` trailers.
 
 The rewrite removes the original local paths, host name, private network
 address, and GPU UUIDs from every branch-only historical snapshot. A
@@ -57,12 +65,12 @@ binary that produced it. Those legacy values are measurements rather than live
 Git object names. The legacy revisions present in the archive map to the
 rewritten equivalents below:
 
-| Recorded revision | Rewritten revision |
+| Recorded revision | Published revision |
 | --- | --- |
-| `275a8d6c507ffca0d32f98b05cf26c13c652727f` | `b632cfef2bb19fc33907dedb925ed3525316f077` |
-| `d3b5d60f1534b71f5dd1a3ac0fe0ee1fafeb9a64` | `66021fc809e94b951b2b728e56b648305a55df2a` |
-| `e33e5bf79b8aaab5017882fed46a3ab7a7552169` | `3a0e3d478c4a075205a258f2237dd810997cf479` |
-| `a01b5bcd8ecdaf26f15475a77143e1a9336264be` | `c55f89a84aad4e3003f40bef232cc9764732d083` |
+| `275a8d6c507ffca0d32f98b05cf26c13c652727f` | `5854d11f18bb5b778d7168a7b0cf191f5bfd80b8` |
+| `d3b5d60f1534b71f5dd1a3ac0fe0ee1fafeb9a64` | `b194b518eb01d9c56c8a9209f997b280ed9ef2ba` |
+| `e33e5bf79b8aaab5017882fed46a3ab7a7552169` | `25fc8122e9bed9f83df11f6ad63631239a06e2bf` |
+| `a01b5bcd8ecdaf26f15475a77143e1a9336264be` | `11023dd82144986d7fd861cd9bcdc9f132a89d5b` |
 
 For commands that use the UUID placeholders, export values for the target
 machine before running the protocol:
