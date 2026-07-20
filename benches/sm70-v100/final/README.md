@@ -1,6 +1,6 @@
 # Final retained-build validation
 
-Revision `d3b5d60f1` was rebuilt in Release mode with real sm_70 and sm_89
+Revision `66021fc80` was rebuilt in Release mode with real sm_70 and sm_89
 code. Every inference and CUDA test exposed only the Tesla V100 UUID. The
 baseline-compatible headline runs used the original 150 W power limit,
 unlocked SM clocks, `-p 512 -n 128 -r 5`, flash attention in auto mode, and

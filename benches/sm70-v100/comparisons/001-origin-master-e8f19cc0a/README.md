@@ -15,7 +15,7 @@ data, not as the baseline for subsequent server optimization.
 ## Revisions
 
 - Control: `e8f19cc0ad70a243c8012bf17b4be601abfc8ea2`
-- Candidate: `e33e5bf79b8aaab5017882fed46a3ab7a7552169`
+- Candidate: `3a0e3d478c4a075205a258f2237dd810997cf479`
 
 Both builds use Release mode, CUDA 12.9, native CPU code, and real sm_70 and
 sm_89 device code. The control is built in a detached Git worktree so neither

@@ -30,23 +30,39 @@ container and virtual-interface identifiers. Statistical output uses ASCII
 
 ## Preserved values
 
-Benchmark results, telemetry values, timestamps, revision IDs, model and input
-hashes, test counts, and pass/fail outcomes were not recomputed or rounded
-during publication cleanup. The command structure and relevant software and
-hardware versions remain present.
+Benchmark results, telemetry values, timestamps, model and input hashes, test
+counts, and pass/fail outcomes were not recomputed or rounded during
+publication cleanup. The command structure and relevant software and hardware
+versions remain present.
 
 The normalized text logs are not byte-for-byte copies of the private
 environment logs. Any hashes recorded in the archive identify models, inputs,
 saved logits, or build artifacts as labeled; they must not be interpreted as
 checksums of the normalized log files.
 
-The branch intentionally preserves its complete development history. Earlier
-commits therefore retain the original local paths, host name, private network
-address, and GPU UUIDs that existed before this cleanup. A history-wide scan
-found no private keys or recognizable API, GitHub, Hugging Face, AWS, Google,
-Slack, bearer, or basic-auth credentials. Removing non-secret machine
-identifiers from every historical Git object would require rewriting the
-commit IDs and is outside this publication cleanup.
+## Rewritten history
+
+All 83 commits that existed only on `sm70-opt` were rewritten before
+publication. Shared upstream commits were not rewritten. The rewritten commits
+preserve the original authors, timestamps, subjects, order, and merge topology,
+and each carries a `History-Rewritten: public-sanitization-v1` trailer.
+
+The rewrite removes the original local paths, host name, private network
+address, and GPU UUIDs from every branch-only historical snapshot. A
+history-wide scan found no private keys or recognizable API, GitHub, Hugging
+Face, AWS, Google, Slack, bearer, or basic-auth credentials.
+
+Archived benchmark output retains the `build_commit` value emitted by the
+binary that produced it. Those legacy values are measurements rather than live
+Git object names. The legacy revisions present in the archive map to the
+rewritten equivalents below:
+
+| Recorded revision | Rewritten revision |
+| --- | --- |
+| `275a8d6c507ffca0d32f98b05cf26c13c652727f` | `b632cfef2bb19fc33907dedb925ed3525316f077` |
+| `d3b5d60f1534b71f5dd1a3ac0fe0ee1fafeb9a64` | `66021fc809e94b951b2b728e56b648305a55df2a` |
+| `e33e5bf79b8aaab5017882fed46a3ab7a7552169` | `3a0e3d478c4a075205a258f2237dd810997cf479` |
+| `a01b5bcd8ecdaf26f15475a77143e1a9336264be` | `c55f89a84aad4e3003f40bef232cc9764732d083` |
 
 For commands that use the UUID placeholders, export values for the target
 machine before running the protocol:

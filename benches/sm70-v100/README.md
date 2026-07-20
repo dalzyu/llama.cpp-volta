@@ -125,7 +125,7 @@ Model sources and hashes are recorded under `models/`.
 
 ## Final aggregate
 
-Revision `d3b5d60f1` passes the complete 12,995-case CUDA backend suite. The
+Revision `66021fc80` passes the complete 12,995-case CUDA backend suite. The
 headline final measurements repeat the original baseline command at the 150 W
 power limit with unlocked clocks and only the V100 visible.
 

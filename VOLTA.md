@@ -60,7 +60,10 @@ must not be compared as if they came from the same benchmark environment.
 
 ## Repository status
 
-The branch preserves its development commits rather than squashing the
-experiments into one patch. It is maintained as a research fork, not as one
-combined upstream contribution. Upstream llama.cpp documentation remains the
-authority for general build and usage instructions.
+The branch preserves its development sequence rather than squashing the
+experiments into one patch. Its branch-only history was rewritten once to
+remove environment identifiers from every snapshot; the publication notes map
+legacy benchmark revision strings to their rewritten equivalents. It is
+maintained as a research fork, not as one combined upstream contribution.
+Upstream llama.cpp documentation remains the authority for general build and
+usage instructions.
