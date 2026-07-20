@@ -2,8 +2,8 @@
 0.00.965.086 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
 0.00.965.639 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
 0.00.996.529 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
-1.40.974.100 I 
-1.40.978.430 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CUDA : ARCHS = 700 | USE_GRAPHS = 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+1.40.974.100 I
+1.40.978.430 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CUDA : ARCHS = 700 | USE_GRAPHS = 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
 1.40.979.215 I perplexity: saving all logits to ${VALIDATION_ROOT}/gemma-tensor-kl/upstream.kld
 1.40.979.500 I perplexity: tokenizing the input ..
 1.46.157.611 I perplexity: tokenization took 5178.11 ms

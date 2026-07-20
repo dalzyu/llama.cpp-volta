@@ -1,8 +1,14 @@
 # sm_70 V100 optimization results
 
-This directory records local optimization experiments for a Tesla V100-SXM2-16GB.
-All inference commands set `CUDA_VISIBLE_DEVICES` to the V100 UUID so the RTX 4080
-is not visible to llama.cpp.
+This directory records single- and dual-GPU optimization experiments for Tesla
+V100-SXM2-16GB hardware. Historical local runs selected the V100 by UUID so the
+RTX 4080 was not visible to llama.cpp. Remote runs expose exactly the two V100s
+named by the active protocol.
+
+For a concise fork overview and implementation map, start with
+[`VOLTA.md`](../../VOLTA.md). Environment-specific paths and identifiers in
+this public archive are described in
+[`PUBLICATION.md`](PUBLICATION.md).
 
 ## Active dual-V100 campaign
 

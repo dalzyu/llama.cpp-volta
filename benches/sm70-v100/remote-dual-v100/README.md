@@ -3,6 +3,8 @@
 This is the active protocol for the 2x Tesla V100-SXM2-16GB optimization
 campaign. It supersedes the 300 W single-card rules in the parent README.
 Experiment 083 established the safety and clock rules on 2026-07-20.
+UUIDs and machine paths use the placeholders defined in
+[`PUBLICATION.md`](../PUBLICATION.md).
 
 ## Fixed identities
 
@@ -105,8 +107,10 @@ normal perplexity result.
 The lock commands are:
 
 ```sh
-GPU0=${V100_GPU_0_UUID}
-GPU1=${V100_GPU_1_UUID}
+: "${V100_GPU_0_UUID:?set V100_GPU_0_UUID to the first V100 UUID}"
+: "${V100_GPU_1_UUID:?set V100_GPU_1_UUID to the second V100 UUID}"
+GPU0=$V100_GPU_0_UUID
+GPU1=$V100_GPU_1_UUID
 
 for gpu in "$GPU0" "$GPU1"; do
     sudo nvidia-smi -i "$gpu" -pm 1

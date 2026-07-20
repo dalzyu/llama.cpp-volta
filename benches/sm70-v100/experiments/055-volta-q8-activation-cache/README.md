@@ -73,4 +73,3 @@ WikiText-2 evaluations. Each pair is byte-identical.
 The standard eight-chunk Q8_0 estimate remains 18.3641. Focused Q8_0, Q4_0,
 Q2_K, Q3_K, Q4_K, and Q6_K single-column coverage passes 51/51. Compute
 Sanitizer reports zero errors for a whole Qwen 3.5 Q8_0 pp128/tg16 run.
-

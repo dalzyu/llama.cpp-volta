@@ -9732,12 +9732,12 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     test_cases.emplace_back(new test_gated_delta_net(GGML_TYPE_F32, 8, 128,  4, 1, 1, false, false, /*K=*/4));
     test_cases.emplace_back(new test_gated_delta_net(GGML_TYPE_F32, 4, 64,   4, 2, 1, false, true,  /*K=*/4));
     test_cases.emplace_back(new test_gated_delta_net(GGML_TYPE_F32, 8, 32,   4, 2, 2, false, true,  /*K=*/4));
-    // overflow: n_tokens > K — only the last K snapshots kept.
+    // overflow: n_tokens > K - only the last K snapshots kept.
     test_cases.emplace_back(new test_gated_delta_net(GGML_TYPE_F32, 4, 32,   8, 1, 1, false, false, /*K=*/3));
     test_cases.emplace_back(new test_gated_delta_net(GGML_TYPE_F32, 4, 64,  16, 2, 1, false, false, /*K=*/4));
 
 #if 0
-    // these tests are disabled to save execution time, sbut they can be handy for debugging
+    // these tests are disabled to save execution time, but they can be handy for debugging
     test_cases.emplace_back(new test_llama(2, true));
     test_cases.emplace_back(new test_llama(1));
     test_cases.emplace_back(new test_llama(2));
@@ -10436,11 +10436,11 @@ static void show_test_coverage() {
 
     printf("Operations covered by tests (%zu):\n", covered_ops.size());
     for (const auto & op : covered_ops) {
-        printf("  ✓ %s\n", op.c_str());
+        printf("  [covered] %s\n", op.c_str());
     }
     printf("\nOperations without tests (%zu):\n", uncovered_ops.size());
     for (const auto & op : uncovered_ops) {
-        printf("  ✗ %s\n", op.c_str());
+        printf("  [uncovered] %s\n", op.c_str());
     }
 
     printf("\nCoverage Summary:\n");
