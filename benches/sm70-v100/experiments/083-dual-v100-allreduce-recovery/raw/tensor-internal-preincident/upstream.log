@@ -1,0 +1,37 @@
+0.00.887.260 W load: override 'tokenizer.ggml.add_bos_token' to 'true' for Gemma4
+0.00.965.086 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.965.639 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.996.529 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+1.40.974.100 I 
+1.40.978.430 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CUDA : ARCHS = 700 | USE_GRAPHS = 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+1.40.979.215 I perplexity: saving all logits to ${VALIDATION_ROOT}/gemma-tensor-kl/upstream.kld
+1.40.979.500 I perplexity: tokenizing the input ..
+1.46.157.611 I perplexity: tokenization took 5178.11 ms
+1.46.157.812 I perplexity: calculating perplexity over 4 chunks, n_ctx=512, batch_size=512, n_seq=1
+1.47.591.808 I perplexity: 1.31 seconds per pass - ETA 0.08 minutes
+[1]757.9064,[2]1361.8577,[3]1171.2623,[4]1667.1081,
+1.58.607.634 I Final estimate: PPL = 1667.1081 +/- 315.86140
+
+	Command being timed: "timeout 900 env CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID},${V100_GPU_1_UUID} GGML_CUDA_ALLREDUCE=internal LD_LIBRARY_PATH=${ARTIFACT_ROOT}/e8f19cc0a/bin ${ARTIFACT_ROOT}/e8f19cc0a/bin/llama-perplexity -m ${MODEL_STAGE}/target.gguf -f ${LLAMA_CPP_ROOT}/wikitext-2-raw/wiki.test.raw -c 512 --chunks 4 -b 512 -ub 512 -t 4 -ngl 999 -sm tensor -ts 1,1 -mg 0 -fa on -ctk f16 -ctv f16 --fit off --save-all-logits ${VALIDATION_ROOT}/gemma-tensor-kl/upstream.kld"
+	User time (seconds): 10.71
+	System time (seconds): 15.85
+	Percent of CPU this job got: 22%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:00.60
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 13044148
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 27771
+	Minor (reclaiming a frame) page faults: 528918
+	Voluntary context switches: 119862
+	Involuntary context switches: 1500
+	Swaps: 0
+	File system inputs: 37611536
+	File system outputs: 1044544
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

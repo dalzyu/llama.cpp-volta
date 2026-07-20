@@ -1,0 +1,28 @@
+captured_utc=2026-07-20T01:02:25Z
+hostname=v100-server
+boot_time=2026-07-19 08:38:57
+Linux v100-server 7.0.0-28-generic #28~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 15:50:57 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+Architecture:                            x86_64
+CPU(s):                                  4
+Model name:                              Intel(R) Xeon(R) CPU E3-1225 v6 @ 3.30GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      4
+Socket(s):                               1
+CPU(s) scaling MHz:                      97%
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-3
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       1.9Gi       518Mi        32Mi        13Gi        13Gi
+Swap:          4.0Gi       2.6Gi       1.4Gi
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2025 NVIDIA Corporation
+Built on Tue_May_27_02:21:03_PDT_2025
+Cuda compilation tools, release 12.9, V12.9.86
+Build cuda_12.9.r12.9/compiler.36037853_0
+cmake version 3.28.3
+1.11.1
+candidate_commit=a01b5bcd8ecdaf26f15475a77143e1a9336264be
+candidate_status=0
+upstream_commit=e8f19cc0ad70a243c8012bf17b4be601abfc8ea2
+0, ${V100_GPU_0_UUID}, Tesla V100-SXM2-16GB, 88.00.4F.00.09, 00000000:01:00.0, 7.0, 300.00 W, 150.00 W, 300.00 W, 16384 MiB
+1, ${V100_GPU_1_UUID}, Tesla V100-SXM2-16GB, 88.00.13.00.02, 00000000:02:00.0, 7.0, 300.00 W, 100.00 W, 300.00 W, 16384 MiB

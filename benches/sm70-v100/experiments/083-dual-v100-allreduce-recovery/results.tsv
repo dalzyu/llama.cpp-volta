@@ -1,0 +1,9 @@
+case	revision	split	allreduce	clock_mhz	power_limit_w	status	throughput_tps	ppl	mean_kld	rms_probability_delta_percent	same_top_percent
+upstream-layer-reference	e8f19cc0a	layer	none	900	150	pass	NA	1642.749188	NA	NA	NA
+upstream-layer-self	e8f19cc0a	layer	none	900	150	pass	NA	1642.749188	-0.000000	0.000	100.000
+candidate-layer	a01b5bcd8	layer	none	900	150	pass-correctness-only	NA	1642.966281	0.000028	0.092	99.804
+upstream-tensor-internal	e8f19cc0a	tensor	internal	unlocked	150	pass-reference	NA	1667.1081	NA	NA	NA
+candidate-tensor-internal	a01b5bcd8	tensor	internal	unlocked	150	pass	NA	1637.190026	0.003081	1.386	98.922
+candidate-tensor-internal-fp32	a01b5bcd8	tensor	internal	unlocked	150	rejected-xid79-status143	NA	NA	NA	NA	NA
+candidate-tensor-nccl	a01b5bcd8	tensor	nccl-2.30.7	892	150	pass-stability-not-equivalence	NA	1609.402167	0.002752	1.248	97.941
+candidate-pp32768-clock-qualification	a01b5bcd8	layer	none	892	150	pass-clock-qualification	729.237026	NA	NA	NA	NA

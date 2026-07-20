@@ -1,0 +1,78 @@
+0.00.889.333 W load: override 'tokenizer.ggml.add_bos_token' to 'true' for Gemma4
+0.00.963.670 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.964.223 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.994.965 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+1.28.266.142 I 
+1.28.268.315 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CUDA : ARCHS = 700 | USE_GRAPHS = 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+1.28.332.808 I kl_divergence: computing over 4 chunks, n_ctx=512, batch_size=512, n_seq=1
+1.29.764.764 I kl_divergence: 1.43 seconds per pass - ETA 0.08 minutes
+
+chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+   1     720.4587 ±  284.4823       0.17045 ±    0.07564       0.01007 ±    0.00653     2.448 ±  0.759 %    97.255 ±  1.025 %
+   2    1326.4739 ±  372.6960       0.23432 ±    0.05203       0.00507 ±    0.00327     1.735 ±  0.536 %    98.235 ±  0.584 %
+   3    1151.2672 ±  255.0718       0.23111 ±    0.04162       0.00402 ±    0.00220     1.596 ±  0.400 %    98.562 ±  0.431 %
+   4    1637.1900 ±  309.8966       0.23171 ±    0.03506       0.00308 ±    0.00165     1.386 ±  0.346 %    98.922 ±  0.324 %
+
+====== Perplexity statistics ======
+Mean PPL(Q)                   : 1637.190026 ± 309.896604
+Mean PPL(base)                : 1298.576619 ± 225.908619
+Cor(ln(PPL(Q)), ln(PPL(base))):  98.49%
+Mean ln(PPL(Q)/PPL(base))     :   0.231713 ±   0.035060
+Mean PPL(Q)/PPL(base)         :   1.260757 ±   0.044203
+Mean PPL(Q)-PPL(base)         : 338.613407 ±  95.751840
+
+====== KL divergence statistics ======
+Mean    KLD:   0.003081 ±   0.001649
+Maximum KLD:   1.624784
+99.9%   KLD:   0.335897
+99.0%   KLD:   0.026881
+95.0%   KLD:   0.002658
+90.0%   KLD:   0.001156
+Median  KLD:   0.000108
+10.0%   KLD:   0.000000
+ 5.0%   KLD:  -0.000009
+ 1.0%   KLD:  -0.000036
+ 0.1%   KLD:  -0.000056
+Minimum KLD:  -0.000058
+
+====== Token probability statistics ======
+Mean    Δp:  0.036 ± 0.043 %
+Maximum Δp: 24.178%
+99.9%   Δp: 14.592%
+99.0%   Δp:  2.042%
+95.0%   Δp:  0.493%
+90.0%   Δp:  0.158%
+75.0%   Δp:  0.003%
+Median  Δp: -0.000%
+25.0%   Δp: -0.001%
+10.0%   Δp: -0.107%
+ 5.0%   Δp: -0.393%
+ 1.0%   Δp: -1.759%
+ 0.1%   Δp: -6.959%
+Minimum Δp: -27.324%
+RMS Δp    :  1.386 ± 0.346 %
+Same top p: 98.922 ± 0.324 %
+
+	Command being timed: "timeout 900 env CUDA_VISIBLE_DEVICES=${V100_GPU_0_UUID},${V100_GPU_1_UUID} GGML_CUDA_ALLREDUCE=internal LD_LIBRARY_PATH=${ARTIFACT_ROOT}/a01b5bcd8/bin ${ARTIFACT_ROOT}/a01b5bcd8/bin/llama-perplexity -m ${MODEL_STAGE}/target.gguf -f ${LLAMA_CPP_ROOT}/wikitext-2-raw/wiki.test.raw -c 512 --chunks 4 -b 512 -ub 512 -t 4 -ngl 999 -sm tensor -ts 1,1 -mg 0 -fa on -ctk f16 -ctv f16 --fit off --kl-divergence-base ${VALIDATION_ROOT}/gemma-tensor-kl/upstream.kld --kl-divergence"
+	User time (seconds): 9.81
+	System time (seconds): 15.82
+	Percent of CPU this job got: 25%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:39.05
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 13019688
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 25187
+	Minor (reclaiming a frame) page faults: 497129
+	Voluntary context switches: 113772
+	Involuntary context switches: 5182
+	Swaps: 0
+	File system inputs: 36884904
+	File system outputs: 16
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

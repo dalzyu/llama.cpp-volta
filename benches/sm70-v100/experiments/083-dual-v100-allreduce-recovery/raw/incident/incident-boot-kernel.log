@@ -1,0 +1,5 @@
+Jul 17 10:16:54 v100-server kernel: NVRM: Xid (PCI:0000:01:00): 79, GPU has fallen off the bus.
+Jul 17 10:16:54 v100-server kernel: NVRM: Xid (PCI:0000:01:00): 79, GPU has fallen off the bus.
+Jul 17 10:16:54 v100-server kernel: NVRM: GPU 0000:01:00.0: GPU has fallen off the bus.
+Jul 17 10:16:54 v100-server kernel: NVRM: GPU 0000:01:00.0: GPU has fallen off the bus.
+Jul 17 10:16:54 v100-server kernel: NVRM: Xid (PCI:0000:01:00): 154, GPU recovery action changed from 0x0 (None) to 0x1 (GPU Reset Required)

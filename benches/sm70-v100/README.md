@@ -4,12 +4,24 @@ This directory records local optimization experiments for a Tesla V100-SXM2-16GB
 All inference commands set `CUDA_VISIBLE_DEVICES` to the V100 UUID so the RTX 4080
 is not visible to llama.cpp.
 
-## Current canonical benchmark protocol
+## Active dual-V100 campaign
+
+The active campaign now runs on a remote 2x V100-SXM2-16GB host with a 150 W
+limit per GPU. Its source-linked protocol is in
+[remote-dual-v100/README.md](remote-dual-v100/README.md). The recovery and
+all-reduce validation that established the 892 MHz locked-clock rule is in
+[experiment 083](experiments/083-dual-v100-allreduce-recovery/README.md).
+
+The single-V100 protocol and results below are historical. In particular, their
+300 W power limit and 1192 MHz clock must not be reused on the 450 W dual-V100
+server.
+
+## Historical single-V100 benchmark protocol
 
 The V100 was replaced with another V100-SXM2-16GB on 2026-07-17. Results from
-the original card remain historical data. New optimization comparisons use the
-following fixed protocol unless an experiment explicitly studies power or clock
-scaling:
+the original card remain historical data. The final single-card optimization
+comparisons used the following fixed protocol unless an experiment explicitly
+studied power or clock scaling:
 
 - V100 UUID: `${V100_GPU_0_UUID}`
 - Excluded RTX 4080 UUID: `${EXCLUDED_GPU_UUID}`

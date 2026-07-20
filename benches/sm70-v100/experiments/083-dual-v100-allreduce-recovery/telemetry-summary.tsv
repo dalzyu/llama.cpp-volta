@@ -1,0 +1,11 @@
+case	gpu	samples	busy_samples	wrong_clock_samples	cap_samples	max_power_w	max_gpu_c	max_hbm_c	max_vram_mib
+upstream-layer-reference	0	1308	153	0	0	129.11	59	60	9200
+upstream-layer-reference	1	1308	164	0	0	135.45	57	58	12288
+upstream-layer-self	0	692	177	0	0	122.08	59	60	9200
+upstream-layer-self	1	692	103	0	0	137.72	57	58	12288
+candidate-layer	0	613	166	0	0	138.12	59	60	9200
+candidate-layer	1	613	143	1	0	149.62	58	59	12288
+candidate-tensor-nccl	0	674	290	0	0	109.15	59	59	12584
+candidate-tensor-nccl	1	674	262	0	0	116.66	57	58	12584
+candidate-pp32768-clock-qualification	0	1978	1139	0	0	141.44	74	78	10966
+candidate-pp32768-clock-qualification	1	1978	1076	0	0	147.17	69	73	11572

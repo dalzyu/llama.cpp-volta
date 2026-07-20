@@ -1,0 +1,6 @@
+captured_utc=2026-07-20T01:18:40Z
+gpu_fields=uuid,power.limit,clocks.current.graphics,clocks.current.memory,temperature.gpu,temperature.memory,ecc.errors.uncorrected.volatile.total,ecc.errors.corrected.volatile.total,memory.used
+${V100_GPU_0_UUID}, 150.00 W, 135 MHz, 877 MHz, 53 C, 52 C, 0, 0, 5 MiB
+${V100_GPU_1_UUID}, 150.00 W, 135 MHz, 877 MHz, 52 C, 51 C, 0, 0, 5 MiB
+compute_apps=none
+current_boot_xid_aer_entries=none

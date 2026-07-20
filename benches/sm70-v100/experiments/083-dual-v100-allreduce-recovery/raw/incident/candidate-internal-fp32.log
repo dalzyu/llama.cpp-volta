@@ -1,0 +1,35 @@
+0.00.867.066 W load: override 'tokenizer.ggml.add_bos_token' to 'true' for Gemma4
+0.00.942.023 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.942.598 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.975.166 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+1.44.744.888 I 
+1.44.746.961 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CUDA : ARCHS = 700 | USE_GRAPHS = 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+1.44.810.578 I kl_divergence: computing over 4 chunks, n_ctx=512, batch_size=512, n_seq=1
+${LLAMA_CPP_ROOT}/ggml/src/ggml-cuda/ggml-cuda.cu:106: CUDA error
+1.47.460.024 E CUDA error: unknown error
+1.47.460.028 E   current device: 1, in function ggml_backend_cuda_synchronize at ${LLAMA_CPP_ROOT}/ggml/src/ggml-cuda/ggml-cuda.cu:2487
+1.47.460.029 E   cudaStreamSynchronize(cuda_ctx->stream())
+[New LWP 871209]
+[New LWP 871208]
+[New LWP 871201]
+[New LWP 871200]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+0x000078c632d10813 in __GI___wait4 (pid=873090, stat_loc=0x0, options=0, usage=0x0) at ../sysdeps/unix/sysv/linux/wait4.c:30
+warning: 30	../sysdeps/unix/sysv/linux/wait4.c: No such file or directory
+#0  0x000078c632d10813 in __GI___wait4 (pid=873090, stat_loc=0x0, options=0, usage=0x0) at ../sysdeps/unix/sysv/linux/wait4.c:30
+30	in ../sysdeps/unix/sysv/linux/wait4.c
+#1  0x000078c632f54683 in ggml_print_backtrace () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-base.so.0
+#2  0x000078c632f5482b in ggml_abort () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-base.so.0
+#3  0x000078c62f471567 in ggml_cuda_error(char const*, char const*, char const*, int, char const*) () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-cuda.so.0
+#4  0x000078c62f47b5d8 in ggml_backend_cuda_synchronize(ggml_backend*) () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-cuda.so.0
+#5  0x000078c632f75a17 in ggml_backend_meta_synchronize(ggml_backend*) () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-base.so.0
+#6  0x000078c632f6e99e in ggml_backend_sched_synchronize () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libggml-base.so.0
+#7  0x000078c6322eb239 in llama_context::synchronize() () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libllama.so.0
+#8  0x000078c633031b1a in llama_perplexity(int, char**) () from ${ARTIFACT_ROOT}/a01b5bcd8/bin/libllama-perplexity-impl.so
+#9  0x000078c632c2a1ca in __libc_start_call_main (main=main@entry=0x59a7bb295060 <main>, argc=argc@entry=34, argv=argv@entry=0x7ffd049b1a28) at ../sysdeps/nptl/libc_start_call_main.h:58
+warning: 58	../sysdeps/nptl/libc_start_call_main.h: No such file or directory
+#10 0x000078c632c2a28b in __libc_start_main_impl (main=0x59a7bb295060 <main>, argc=34, argv=0x7ffd049b1a28, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7ffd049b1a18) at ../csu/libc-start.c:360
+warning: 360	../csu/libc-start.c: No such file or directory
+#11 0x000059a7bb295095 in _start ()
+[Inferior 1 (process 871178) detached]
